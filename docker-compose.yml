@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mariadb:11
+    container_name: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: passroot
+      MARIADB_DATABASE: calendario_reservas
+      MARIADB_USER: appuser
+      MARIADB_PASSWORD: secretpassword
+      TZ: "UTC"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadbdata:/var/lib/mysql
+volumes:
+  mariadbdata:
