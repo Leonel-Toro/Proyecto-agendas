@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/reservas/agendar").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reservas/lista/medios_pago").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reservas/historial").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/reservas/historial/detalle/{id}").permitAll()
                 .anyRequest().denyAll()
         );
         return http.build();

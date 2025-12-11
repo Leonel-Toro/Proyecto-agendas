@@ -22,7 +22,7 @@ public class ReservaService {
     @Autowired
     private ClienteRepository clienteRepository;
 
-    public boolean agendarCliente(ReservaClienteDTO reservaClienteDTO){
+    public ReservaClienteDTO agendarCliente(ReservaClienteDTO reservaClienteDTO){
         if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
 
         if (reservaClienteDTO.getPrecio() == null || reservaClienteDTO.getPrecio() < 0)
@@ -79,7 +79,21 @@ public class ReservaService {
         r.setCliente(cliente);
 
         reservaRepository.save(r);
-        return true;
+
+        // Retornar el DTO con la reserva creada
+        ReservaClienteDTO respuesta = new ReservaClienteDTO();
+        respuesta.setPrecio(r.getPrecio());
+        respuesta.setEstado(r.getEstado().toString());
+        respuesta.setFechaReserva(r.getFechaReserva());
+        respuesta.setLugarEncuentro(r.getLugarEncuentro());
+        respuesta.setNombreProducto(r.getNombreProducto());
+        respuesta.setMensajePersonalizado(r.getMensajePersonalizado());
+        respuesta.setNombreCliente(cliente.getNombre());
+        respuesta.setEmailCliente(cliente.getEmail());
+        respuesta.setTelefonoCliente(cliente.getTelefono());
+        respuesta.setMedioCliente(cliente.getMedio().toString());
+
+        return respuesta;
     }
 
     public List<ReservaClienteDTO> obtenerHistorial(){
@@ -103,5 +117,32 @@ public class ReservaService {
             return reservaClienteDTO;
         }).toList();
         return listaRCDTO;
+    }
+
+    public ReservaClienteDTO obtenerDetalleReserva(Long id){
+        Optional<Reserva> reservaOpt = reservaRepository.findById(id);
+        if(reservaOpt.isEmpty()){
+            return null;
+        }
+
+        Reserva r = reservaOpt.get();
+        ReservaClienteDTO reservaClienteDTO = new ReservaClienteDTO();
+        reservaClienteDTO.setPrecio(r.getPrecio());
+        reservaClienteDTO.setEstado(r.getEstado().toString());
+        reservaClienteDTO.setFechaReserva(r.getFechaReserva());
+        reservaClienteDTO.setLugarEncuentro(r.getLugarEncuentro());
+        reservaClienteDTO.setNombreProducto(r.getNombreProducto());
+        reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
+
+        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
+        if(optionalCliente.isPresent()){
+            Cliente cliente = optionalCliente.get();
+            reservaClienteDTO.setNombreCliente(cliente.getNombre());
+            reservaClienteDTO.setEmailCliente(cliente.getEmail());
+            reservaClienteDTO.setMedioCliente(cliente.getMedio().toString());
+            reservaClienteDTO.setTelefonoCliente(cliente.getTelefono());
+        }
+
+        return reservaClienteDTO;
     }
 }

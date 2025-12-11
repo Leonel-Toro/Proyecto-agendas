@@ -6,7 +6,7 @@
 -- Tiempo de generación: 01-10-2025 a las 04:49:53
 -- Versión del servidor: 10.4.28-MariaDB
 -- Versión de PHP: 8.2.4
-
+USE `calendario_reservas`;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
