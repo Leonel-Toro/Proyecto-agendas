@@ -100,6 +100,9 @@ public class ReservaService {
         List<Reserva> listaReserva = reservaRepository.findAll();
         List<ReservaClienteDTO> listaRCDTO = listaReserva.stream().map(r -> {
             ReservaClienteDTO reservaClienteDTO = new ReservaClienteDTO();
+            reservaClienteDTO.setNombreProducto(r.getNombreProducto());
+            reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
+            reservaClienteDTO.setFechaTermino(r.getFechaTermino());
             reservaClienteDTO.setPrecio(r.getPrecio());
             reservaClienteDTO.setEstado(r.getEstado().toString());
             reservaClienteDTO.setFechaReserva(r.getFechaReserva());
