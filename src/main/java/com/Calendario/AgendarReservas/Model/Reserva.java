@@ -32,6 +32,9 @@ public class Reserva {
     @Column(name = "precio", nullable = false)
     private Long precio = 0L;
 
+    @Column(name= "abonado",nullable = false)
+    private Long abonado = 0L;
+
     @Column(name = "nombre_producto")
     private String nombreProducto;
 
@@ -110,6 +113,14 @@ public class Reserva {
 
     public void setPrecio(Long precio) {
         this.precio = precio;
+    }
+
+    public Long getAbonado() {
+        return abonado;
+    }
+
+    public void setAbonado(Long abonado) {
+        this.abonado = abonado;
     }
 
     public EstadoReserva getEstado() {

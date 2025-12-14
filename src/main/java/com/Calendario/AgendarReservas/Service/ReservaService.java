@@ -26,7 +26,10 @@ public class ReservaService {
         if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
 
         if (reservaClienteDTO.getPrecio() == null || reservaClienteDTO.getPrecio() < 0)
-            throw new IllegalArgumentException("El precio debe ser >= 0.");
+            throw new IllegalArgumentException("El precio debe ser mayor 0.");
+
+        if(reservaClienteDTO.getAbonado() == null || reservaClienteDTO.getAbonado() < 0)
+            throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
 
         if (reservaClienteDTO.getEstado() == null || reservaClienteDTO.getEstado().equals(""))
             throw new IllegalArgumentException("El estado es obligatorio.");
@@ -62,8 +65,8 @@ public class ReservaService {
             // Crea cliente nuevo si no existe por email
             cliente = new Cliente();
             cliente.setNombre(reservaClienteDTO.getNombreCliente().trim());
-            cliente.setEmail(reservaClienteDTO.getEmailCliente());
-            cliente.setTelefono(reservaClienteDTO.getTelefonoCliente() != null ? reservaClienteDTO.getTelefonoCliente().trim() : null);
+            cliente.setEmail(!reservaClienteDTO.getEmailCliente().isEmpty() ? reservaClienteDTO.getEmailCliente().trim() : null);
+            cliente.setTelefono(!reservaClienteDTO.getTelefonoCliente().isEmpty() ? reservaClienteDTO.getTelefonoCliente().trim() : null);
             cliente.setMedio(medioSeleccionado);
         }
 
@@ -75,25 +78,13 @@ public class ReservaService {
         r.setLugarEncuentro(reservaClienteDTO.getLugarEncuentro());
         r.setNombreProducto(reservaClienteDTO.getNombreProducto());
         r.setMensajePersonalizado(reservaClienteDTO.getMensajePersonalizado());
+        r.setAbonado(reservaClienteDTO.getAbonado());
         clienteRepository.save(cliente);
         r.setCliente(cliente);
 
         reservaRepository.save(r);
 
-        // Retornar el DTO con la reserva creada
-        ReservaClienteDTO respuesta = new ReservaClienteDTO();
-        respuesta.setPrecio(r.getPrecio());
-        respuesta.setEstado(r.getEstado().toString());
-        respuesta.setFechaReserva(r.getFechaReserva());
-        respuesta.setLugarEncuentro(r.getLugarEncuentro());
-        respuesta.setNombreProducto(r.getNombreProducto());
-        respuesta.setMensajePersonalizado(r.getMensajePersonalizado());
-        respuesta.setNombreCliente(cliente.getNombre());
-        respuesta.setEmailCliente(cliente.getEmail());
-        respuesta.setTelefonoCliente(cliente.getTelefono());
-        respuesta.setMedioCliente(cliente.getMedio().toString());
-
-        return respuesta;
+        return reservaClienteDTO;
     }
 
     public List<ReservaClienteDTO> obtenerHistorial() {
@@ -108,6 +99,7 @@ public class ReservaService {
             reservaClienteDTO.setEstado(r.getEstado().toString());
             reservaClienteDTO.setFechaReserva(r.getFechaReserva());
             reservaClienteDTO.setLugarEncuentro(r.getLugarEncuentro());
+            reservaClienteDTO.setAbonado(r.getAbonado());
             Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
             Cliente cliente = new Cliente();
 
@@ -158,10 +150,19 @@ public class ReservaService {
             throw new IllegalArgumentException("No se encontró la reserva con el id proporcionado.");
         }
 
+        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() >= 0)
+            throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
+
+        if (reservaClienteDTO.getAbonado() > reservaClienteDTO.getPrecio())
+            throw new IllegalArgumentException("El monto abonado no puede ser mayor al precio total.");
+
         Reserva r = reservaOpt.get();
 
         if (reservaClienteDTO.getPrecio() != null && reservaClienteDTO.getPrecio() >= 0)
             r.setPrecio(reservaClienteDTO.getPrecio());
+
+        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() >= 0)
+            r.setAbonado(reservaClienteDTO.getAbonado());
 
         if (reservaClienteDTO.getEstado() != null && !reservaClienteDTO.getEstado().equals("")) {
             EstadoReserva estadoSeleccionado = EstadoReserva.findEstado(Integer.parseInt(reservaClienteDTO.getEstado()));
@@ -188,25 +189,6 @@ public class ReservaService {
 
         reservaRepository.save(r);
 
-        // Retornar el DTO con la reserva editada
-        ReservaClienteDTO respuesta = new ReservaClienteDTO();
-        respuesta.setId(r.getIdReserva());
-        respuesta.setPrecio(r.getPrecio());
-        respuesta.setEstado(r.getEstado().toString());
-        respuesta.setFechaReserva(r.getFechaReserva());
-        respuesta.setFechaTermino(r.getFechaTermino());
-        respuesta.setLugarEncuentro(r.getLugarEncuentro());
-        respuesta.setNombreProducto(r.getNombreProducto());
-        respuesta.setMensajePersonalizado(r.getMensajePersonalizado());
-
-        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
-        if (optionalCliente.isPresent()) {
-            Cliente cliente = optionalCliente.get();
-            respuesta.setNombreCliente(cliente.getNombre());
-            respuesta.setEmailCliente(cliente.getEmail());
-            respuesta.setTelefonoCliente(cliente.getTelefono());
-            respuesta.setMedioCliente(cliente.getMedio().toString());
-        }
-        return respuesta;
+        return reservaClienteDTO;
     }
 }

@@ -20,6 +20,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
-                .maxAge(3600); // cachea preflight 1 hora
+                .maxAge(3600);
     }
 }

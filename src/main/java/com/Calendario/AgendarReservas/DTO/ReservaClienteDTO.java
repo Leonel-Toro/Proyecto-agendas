@@ -14,6 +14,7 @@ public class ReservaClienteDTO {
     private String telefonoCliente;
     private String medioCliente;
     private String mensajePersonalizado;
+    private Long abonado;
 
     public ReservaClienteDTO() {
     }
@@ -110,5 +111,13 @@ public class ReservaClienteDTO {
 
     public void setMensajePersonalizado(String mensajePersonalizado) {
         this.mensajePersonalizado = mensajePersonalizado;
+    }
+
+    public Long getAbonado() {
+        return abonado;
+    }
+
+    public void setAbonado(Long abonado) {
+        this.abonado = abonado;
     }
 }
