@@ -32,7 +32,7 @@ public class Reserva {
     @Column(name = "precio", nullable = false)
     private Long precio = 0L;
 
-    @Column(name= "abonado",nullable = false)
+    @Column(name= "abonado")
     private Long abonado = 0L;
 
     @Column(name = "nombre_producto")

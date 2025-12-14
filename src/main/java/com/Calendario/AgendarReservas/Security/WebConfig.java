@@ -12,7 +12,6 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // Split por coma para soportar múltiples orígenes
         String[] allowedOrigins = allowedOriginsString.split(",");
 
         registry.addMapping("/api/**")
