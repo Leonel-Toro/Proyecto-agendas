@@ -58,4 +58,20 @@ public class ReservaController {
         }
     }
 
+    @PutMapping("/editar")
+    public ResponseEntity<ResponseApi<ReservaClienteDTO>> editarReserva(@RequestBody ReservaClienteDTO reservaClienteDTO){
+        try {
+            ReservaClienteDTO resultado = reservaService.editarReserva(reservaClienteDTO);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseApi<>(200, "Reserva editada exitosamente", resultado));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseApi<>(400, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseApi<>(500, "Error al editar la reserva: " + e.getMessage()));
+        }
+
+    }
+
 }

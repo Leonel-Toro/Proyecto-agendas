@@ -22,7 +22,7 @@ public class ReservaService {
     @Autowired
     private ClienteRepository clienteRepository;
 
-    public ReservaClienteDTO agendarCliente(ReservaClienteDTO reservaClienteDTO){
+    public ReservaClienteDTO agendarCliente(ReservaClienteDTO reservaClienteDTO) {
         if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
 
         if (reservaClienteDTO.getPrecio() == null || reservaClienteDTO.getPrecio() < 0)
@@ -49,7 +49,7 @@ public class ReservaService {
         if (reservaClienteDTO.getMedioCliente() == null || reservaClienteDTO.getMedioCliente().equals(""))
             throw new IllegalArgumentException("Debe seleccionar el medio por el cual fue contactado.");
 
-        if(reservaClienteDTO.getNombreProducto() == null || reservaClienteDTO.getNombreProducto().equals("")){
+        if (reservaClienteDTO.getNombreProducto() == null || reservaClienteDTO.getNombreProducto().equals("")) {
             throw new IllegalArgumentException("El nombre del producto no debe ser vacio.");
         }
 
@@ -96,10 +96,11 @@ public class ReservaService {
         return respuesta;
     }
 
-    public List<ReservaClienteDTO> obtenerHistorial(){
+    public List<ReservaClienteDTO> obtenerHistorial() {
         List<Reserva> listaReserva = reservaRepository.findAll();
         List<ReservaClienteDTO> listaRCDTO = listaReserva.stream().map(r -> {
             ReservaClienteDTO reservaClienteDTO = new ReservaClienteDTO();
+            reservaClienteDTO.setId(r.getIdReserva());
             reservaClienteDTO.setNombreProducto(r.getNombreProducto());
             reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
             reservaClienteDTO.setFechaTermino(r.getFechaTermino());
@@ -110,7 +111,7 @@ public class ReservaService {
             Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
             Cliente cliente = new Cliente();
 
-            if(optionalCliente.isPresent()){
+            if (optionalCliente.isPresent()) {
                 cliente = optionalCliente.get();
             }
             reservaClienteDTO.setNombreCliente(cliente.getNombre());
@@ -122,9 +123,9 @@ public class ReservaService {
         return listaRCDTO;
     }
 
-    public ReservaClienteDTO obtenerDetalleReserva(Long id){
+    public ReservaClienteDTO obtenerDetalleReserva(Long id) {
         Optional<Reserva> reservaOpt = reservaRepository.findById(id);
-        if(reservaOpt.isEmpty()){
+        if (reservaOpt.isEmpty()) {
             return null;
         }
 
@@ -138,7 +139,7 @@ public class ReservaService {
         reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
 
         Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
-        if(optionalCliente.isPresent()){
+        if (optionalCliente.isPresent()) {
             Cliente cliente = optionalCliente.get();
             reservaClienteDTO.setNombreCliente(cliente.getNombre());
             reservaClienteDTO.setEmailCliente(cliente.getEmail());
@@ -147,5 +148,65 @@ public class ReservaService {
         }
 
         return reservaClienteDTO;
+    }
+
+    public ReservaClienteDTO editarReserva(ReservaClienteDTO reservaClienteDTO) {
+        if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
+
+        Optional<Reserva> reservaOpt = reservaRepository.findById(reservaClienteDTO.getId());
+        if (reservaOpt.isEmpty()) {
+            throw new IllegalArgumentException("No se encontró la reserva con el id proporcionado.");
+        }
+
+        Reserva r = reservaOpt.get();
+
+        if (reservaClienteDTO.getPrecio() != null && reservaClienteDTO.getPrecio() >= 0)
+            r.setPrecio(reservaClienteDTO.getPrecio());
+
+        if (reservaClienteDTO.getEstado() != null && !reservaClienteDTO.getEstado().equals("")) {
+            EstadoReserva estadoSeleccionado = EstadoReserva.findEstado(Integer.parseInt(reservaClienteDTO.getEstado()));
+            r.setEstado(estadoSeleccionado);
+        }
+
+        if (reservaClienteDTO.getFechaTermino() != null) {
+            LocalDateTime inicio = reservaClienteDTO.getFechaTermino().toLocalDateTime();
+            if (inicio.isBefore(LocalDateTime.now()))
+                throw new IllegalArgumentException("La fecha de termino debe ser futura.");
+            r.setFechaTermino(reservaClienteDTO.getFechaTermino());
+        }
+
+        if (reservaClienteDTO.getLugarEncuentro() != null)
+            r.setLugarEncuentro(reservaClienteDTO.getLugarEncuentro());
+
+        if (reservaClienteDTO.getNombreProducto() != null && !reservaClienteDTO.getNombreProducto().equals("")) {
+            r.setNombreProducto(reservaClienteDTO.getNombreProducto());
+        }
+
+        if (reservaClienteDTO.getMensajePersonalizado() != null) {
+            r.setMensajePersonalizado(reservaClienteDTO.getMensajePersonalizado());
+        }
+
+        reservaRepository.save(r);
+
+        // Retornar el DTO con la reserva editada
+        ReservaClienteDTO respuesta = new ReservaClienteDTO();
+        respuesta.setId(r.getIdReserva());
+        respuesta.setPrecio(r.getPrecio());
+        respuesta.setEstado(r.getEstado().toString());
+        respuesta.setFechaReserva(r.getFechaReserva());
+        respuesta.setFechaTermino(r.getFechaTermino());
+        respuesta.setLugarEncuentro(r.getLugarEncuentro());
+        respuesta.setNombreProducto(r.getNombreProducto());
+        respuesta.setMensajePersonalizado(r.getMensajePersonalizado());
+
+        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
+        if (optionalCliente.isPresent()) {
+            Cliente cliente = optionalCliente.get();
+            respuesta.setNombreCliente(cliente.getNombre());
+            respuesta.setEmailCliente(cliente.getEmail());
+            respuesta.setTelefonoCliente(cliente.getTelefono());
+            respuesta.setMedioCliente(cliente.getMedio().toString());
+        }
+        return respuesta;
     }
 }

@@ -2,6 +2,7 @@ package com.Calendario.AgendarReservas.DTO;
 import java.sql.Timestamp;
 
 public class ReservaClienteDTO {
+    private long id;
     private Long precio;
     private String estado;
     private String nombreProducto;
@@ -17,6 +18,12 @@ public class ReservaClienteDTO {
     public ReservaClienteDTO() {
     }
 
+    public Long getId() {
+        return id;
+    }
+    public void setId(long id) {
+        this.id = id;
+    }
     public Long getPrecio() {
         return precio;
     }
