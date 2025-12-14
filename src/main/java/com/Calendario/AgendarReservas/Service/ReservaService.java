@@ -150,7 +150,7 @@ public class ReservaService {
             throw new IllegalArgumentException("No se encontró la reserva con el id proporcionado.");
         }
 
-        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() >= 0)
+        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() < 0)
             throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
 
         if (reservaClienteDTO.getAbonado() > reservaClienteDTO.getPrecio())
