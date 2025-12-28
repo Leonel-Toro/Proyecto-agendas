@@ -10,8 +10,6 @@ public class ReservaClienteDTO {
     private Timestamp fechaTermino;
     private String lugarEncuentro;
     private String nombreCliente;
-    private String emailCliente;
-    private String telefonoCliente;
     private String medioCliente;
     private String mensajePersonalizado;
     private Long abonado;
@@ -71,22 +69,6 @@ public class ReservaClienteDTO {
 
     public void setNombreCliente(String nombreCliente) {
         this.nombreCliente = nombreCliente;
-    }
-
-    public String getEmailCliente() {
-        return emailCliente;
-    }
-
-    public void setEmailCliente(String emailCliente) {
-        this.emailCliente = emailCliente;
-    }
-
-    public String getTelefonoCliente() {
-        return telefonoCliente;
-    }
-
-    public void setTelefonoCliente(String telefonoCliente) {
-        this.telefonoCliente = telefonoCliente;
     }
 
     public String getMedioCliente() {
