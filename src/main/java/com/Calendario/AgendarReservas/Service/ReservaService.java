@@ -5,10 +5,15 @@ import com.Calendario.AgendarReservas.Model.Cliente;
 import com.Calendario.AgendarReservas.Model.EstadoReserva;
 import com.Calendario.AgendarReservas.Model.MedioContacto;
 import com.Calendario.AgendarReservas.Model.Reserva;
+import com.Calendario.AgendarReservas.Model.User;
 import com.Calendario.AgendarReservas.Repository.ClienteRepository;
 import com.Calendario.AgendarReservas.Repository.ReservaRepository;
+import com.Calendario.AgendarReservas.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,8 +27,40 @@ public class ReservaService {
     @Autowired
     private ClienteRepository clienteRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    /**
+     * Obtiene el usuario autenticado actual
+     * Busca por username, email o ID dependiendo del valor en el token
+     */
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() ||
+            "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new IllegalStateException("Usuario no autenticado");
+        }
+
+        String principal = authentication.getName();
+
+        // Intentar buscar por username o email
+        return userRepository.findByUsernameOrEmail(principal,principal)
+                .orElseThrow(() -> new IllegalStateException("Usuario no encontrado: " + principal));
+    }
+
+    /**
+     * Obtiene el ID del usuario autenticado actual
+     */
+    private Long getCurrentUserId() {
+        return getCurrentUser().getId();
+    }
+
+    @Transactional
     public ReservaClienteDTO agendarCliente(ReservaClienteDTO reservaClienteDTO) {
         if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
+
+        // Obtener usuario autenticado
+        User currentUser = getCurrentUser();
 
         if (reservaClienteDTO.getPrecio() == null || reservaClienteDTO.getPrecio() < 0)
             throw new IllegalArgumentException("El precio debe ser mayor 0.");
@@ -46,9 +83,6 @@ public class ReservaService {
         if (reservaClienteDTO.getNombreCliente() == null || reservaClienteDTO.getNombreCliente().equals(""))
             throw new IllegalArgumentException("El nombre del cliente es obligatorio.");
 
-        /*if (reservaClienteDTO.getEmailCliente() == null || reservaClienteDTO.getEmailCliente().equals(""))
-            throw new IllegalArgumentException("Email de cliente inválido.");
-        */
         if (reservaClienteDTO.getMedioCliente() == null || reservaClienteDTO.getMedioCliente().equals(""))
             throw new IllegalArgumentException("Debe seleccionar el medio por el cual fue contactado.");
 
@@ -79,81 +113,105 @@ public class ReservaService {
         r.setNombreProducto(reservaClienteDTO.getNombreProducto());
         r.setMensajePersonalizado(reservaClienteDTO.getMensajePersonalizado());
         r.setAbonado(reservaClienteDTO.getAbonado());
+
+        // Asignar el usuario autenticado a la reserva
+        r.setUser(currentUser);
+
         clienteRepository.save(cliente);
         r.setCliente(cliente);
 
         reservaRepository.save(r);
 
+        // Devolver el DTO con el ID asignado
+        reservaClienteDTO.setId(r.getIdReserva());
+
         return reservaClienteDTO;
     }
 
+    /**
+     * Obtiene el historial de reservas del usuario autenticado
+     */
+    @Transactional(readOnly = true)
     public List<ReservaClienteDTO> obtenerHistorial() {
-        List<Reserva> listaReserva = reservaRepository.findAll();
-        List<ReservaClienteDTO> listaRCDTO = listaReserva.stream().map(r -> {
-            ReservaClienteDTO reservaClienteDTO = new ReservaClienteDTO();
-            reservaClienteDTO.setId(r.getIdReserva());
-            reservaClienteDTO.setNombreProducto(r.getNombreProducto());
-            reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
-            reservaClienteDTO.setFechaTermino(r.getFechaTermino());
-            reservaClienteDTO.setPrecio(r.getPrecio());
-            reservaClienteDTO.setEstado(r.getEstado().toString());
-            reservaClienteDTO.setFechaReserva(r.getFechaReserva());
-            reservaClienteDTO.setLugarEncuentro(r.getLugarEncuentro());
-            reservaClienteDTO.setAbonado(r.getAbonado());
-            Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
-            Cliente cliente = new Cliente();
+        Long userId = getCurrentUserId();
 
-            if (optionalCliente.isPresent()) {
-                cliente = optionalCliente.get();
-            }
-            reservaClienteDTO.setNombreCliente(cliente.getNombre());
-            reservaClienteDTO.setEmailCliente(cliente.getEmail());
-            reservaClienteDTO.setMedioCliente(cliente.getMedio().toString());
-            reservaClienteDTO.setTelefonoCliente(cliente.getTelefono());
-            return reservaClienteDTO;
-        }).toList();
-        return listaRCDTO;
+        List<Reserva> listaReserva = reservaRepository.findByUserIdOrderByFechaReservaDesc(userId);
+
+        return listaReserva.stream().map(this::mapReservaToDTO).toList();
     }
 
+    /**
+     * Obtiene el historial de reservas de un usuario específico (solo para admins)
+     */
+    @Transactional(readOnly = true)
+    public List<ReservaClienteDTO> obtenerHistorialPorUsuario(Long userId) {
+        // Verificar que el usuario existe
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+        List<Reserva> listaReserva = reservaRepository.findByUserIdOrderByFechaReservaDesc(userId);
+
+        return listaReserva.stream().map(this::mapReservaToDTO).toList();
+    }
+
+    /**
+     * Obtiene el historial de reservas por email del usuario (solo para admins)
+     */
+    @Transactional(readOnly = true)
+    public List<ReservaClienteDTO> obtenerHistorialPorEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con email: " + email));
+
+        List<Reserva> listaReserva = reservaRepository.findByUserIdOrderByFechaReservaDesc(user.getId());
+
+        return listaReserva.stream().map(this::mapReservaToDTO).toList();
+    }
+
+    /**
+     * Obtiene el detalle de una reserva verificando que pertenezca al usuario autenticado
+     */
+    @Transactional(readOnly = true)
     public ReservaClienteDTO obtenerDetalleReserva(Long id) {
+        Long userId = getCurrentUserId();
+
+        Optional<Reserva> reservaOpt = reservaRepository.findByIdReservaAndUserId(id, userId);
+        if (reservaOpt.isEmpty()) {
+            return null;
+        }
+
+        return mapReservaToDTO(reservaOpt.get());
+    }
+
+    /**
+     * Obtiene el detalle de una reserva sin verificar usuario (para admins)
+     */
+    @Transactional(readOnly = true)
+    public ReservaClienteDTO obtenerDetalleReservaAdmin(Long id) {
         Optional<Reserva> reservaOpt = reservaRepository.findById(id);
         if (reservaOpt.isEmpty()) {
             return null;
         }
 
-        Reserva r = reservaOpt.get();
-        ReservaClienteDTO reservaClienteDTO = new ReservaClienteDTO();
-        reservaClienteDTO.setPrecio(r.getPrecio());
-        reservaClienteDTO.setEstado(r.getEstado().toString());
-        reservaClienteDTO.setFechaReserva(r.getFechaReserva());
-        reservaClienteDTO.setLugarEncuentro(r.getLugarEncuentro());
-        reservaClienteDTO.setNombreProducto(r.getNombreProducto());
-        reservaClienteDTO.setMensajePersonalizado(r.getMensajePersonalizado());
-
-        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
-        if (optionalCliente.isPresent()) {
-            Cliente cliente = optionalCliente.get();
-            reservaClienteDTO.setNombreCliente(cliente.getNombre());
-            reservaClienteDTO.setEmailCliente(cliente.getEmail());
-            reservaClienteDTO.setMedioCliente(cliente.getMedio().toString());
-            reservaClienteDTO.setTelefonoCliente(cliente.getTelefono());
-        }
-
-        return reservaClienteDTO;
+        return mapReservaToDTO(reservaOpt.get());
     }
 
+    @Transactional
     public ReservaClienteDTO editarReserva(ReservaClienteDTO reservaClienteDTO) {
         if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
 
-        Optional<Reserva> reservaOpt = reservaRepository.findById(reservaClienteDTO.getId());
+        Long userId = getCurrentUserId();
+
+        // Buscar la reserva verificando que pertenezca al usuario
+        Optional<Reserva> reservaOpt = reservaRepository.findByIdReservaAndUserId(reservaClienteDTO.getId(), userId);
         if (reservaOpt.isEmpty()) {
-            throw new IllegalArgumentException("No se encontró la reserva con el id proporcionado.");
+            throw new IllegalArgumentException("No se encontró la reserva o no tiene permisos para editarla.");
         }
 
         if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() < 0)
             throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
 
-        if (reservaClienteDTO.getAbonado() > reservaClienteDTO.getPrecio())
+        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getPrecio() != null
+            && reservaClienteDTO.getAbonado() > reservaClienteDTO.getPrecio())
             throw new IllegalArgumentException("El monto abonado no puede ser mayor al precio total.");
 
         Reserva r = reservaOpt.get();
@@ -191,4 +249,101 @@ public class ReservaService {
 
         return reservaClienteDTO;
     }
+
+    /**
+     * Editar reserva sin verificar usuario (para admins)
+     */
+    @Transactional
+    public ReservaClienteDTO editarReservaAdmin(ReservaClienteDTO reservaClienteDTO) {
+        if (reservaClienteDTO == null) throw new IllegalArgumentException("Payload vacío.");
+
+        Optional<Reserva> reservaOpt = reservaRepository.findById(reservaClienteDTO.getId());
+        if (reservaOpt.isEmpty()) {
+            throw new IllegalArgumentException("No se encontró la reserva con el id proporcionado.");
+        }
+
+        // Misma lógica de validación y actualización...
+        Reserva r = reservaOpt.get();
+
+        if (reservaClienteDTO.getPrecio() != null && reservaClienteDTO.getPrecio() >= 0)
+            r.setPrecio(reservaClienteDTO.getPrecio());
+
+        if (reservaClienteDTO.getAbonado() != null && reservaClienteDTO.getAbonado() >= 0)
+            r.setAbonado(reservaClienteDTO.getAbonado());
+
+        if (reservaClienteDTO.getEstado() != null && !reservaClienteDTO.getEstado().equals("")) {
+            EstadoReserva estadoSeleccionado = EstadoReserva.findEstado(Integer.parseInt(reservaClienteDTO.getEstado()));
+            r.setEstado(estadoSeleccionado);
+        }
+
+        if (reservaClienteDTO.getFechaTermino() != null) {
+            r.setFechaTermino(reservaClienteDTO.getFechaTermino());
+        }
+
+        if (reservaClienteDTO.getLugarEncuentro() != null)
+            r.setLugarEncuentro(reservaClienteDTO.getLugarEncuentro());
+
+        if (reservaClienteDTO.getNombreProducto() != null && !reservaClienteDTO.getNombreProducto().equals("")) {
+            r.setNombreProducto(reservaClienteDTO.getNombreProducto());
+        }
+
+        if (reservaClienteDTO.getMensajePersonalizado() != null) {
+            r.setMensajePersonalizado(reservaClienteDTO.getMensajePersonalizado());
+        }
+
+        reservaRepository.save(r);
+
+        return reservaClienteDTO;
+    }
+
+    /**
+     * Eliminar una reserva (solo el propietario)
+     */
+    @Transactional
+    public void eliminarReserva(Long id) {
+        Long userId = getCurrentUserId();
+
+        Optional<Reserva> reservaOpt = reservaRepository.findByIdReservaAndUserId(id, userId);
+        if (reservaOpt.isEmpty()) {
+            throw new IllegalArgumentException("No se encontró la reserva o no tiene permisos para eliminarla.");
+        }
+
+        reservaRepository.delete(reservaOpt.get());
+    }
+
+    /**
+     * Verifica si una reserva pertenece al usuario autenticado
+     */
+    public boolean esReservaDelUsuario(Long reservaId) {
+        Long userId = getCurrentUserId();
+        return reservaRepository.findByIdReservaAndUserId(reservaId, userId).isPresent();
+    }
+
+    /**
+     * Mapea una entidad Reserva a DTO
+     */
+    private ReservaClienteDTO mapReservaToDTO(Reserva r) {
+        ReservaClienteDTO dto = new ReservaClienteDTO();
+        dto.setId(r.getIdReserva());
+        dto.setNombreProducto(r.getNombreProducto());
+        dto.setMensajePersonalizado(r.getMensajePersonalizado());
+        dto.setFechaTermino(r.getFechaTermino());
+        dto.setPrecio(r.getPrecio());
+        dto.setEstado(r.getEstado().toString());
+        dto.setFechaReserva(r.getFechaReserva());
+        dto.setLugarEncuentro(r.getLugarEncuentro());
+        dto.setAbonado(r.getAbonado());
+
+        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
+        if (optionalCliente.isPresent()) {
+            Cliente cliente = optionalCliente.get();
+            dto.setNombreCliente(cliente.getNombre());
+            dto.setEmailCliente(cliente.getEmail());
+            dto.setMedioCliente(cliente.getMedio().toString());
+            dto.setTelefonoCliente(cliente.getTelefono());
+        }
+
+        return dto;
+    }
 }
+

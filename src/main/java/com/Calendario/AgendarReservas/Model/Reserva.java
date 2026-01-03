@@ -18,6 +18,10 @@ public class Reserva {
     @JoinColumn(name = "id_cliente", nullable = false)
     private Cliente cliente;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @NotNull
     @Column(name = "fecha_reserva", nullable = false)
     private Timestamp fechaReserva;
@@ -161,5 +165,13 @@ public class Reserva {
 
     public void setMensajePersonalizado(String mensajePersonalizado) {
         this.mensajePersonalizado = mensajePersonalizado;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

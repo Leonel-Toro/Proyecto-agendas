@@ -338,3 +338,57 @@ const apiCall = async (url, options = {}) => {
 - [ ] Revisar variables de entorno
 - [ ] Deshabilitar creación automática de admin (opcional)
 
+---
+
+## 📅 Endpoints de Reservas
+
+Todas las reservas están asociadas al usuario autenticado. Un usuario solo puede ver y modificar sus propias reservas.
+
+### Endpoints de Usuario (requieren autenticación)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/reservas/agendar` | Crear nueva reserva (asignada al usuario actual) |
+| GET | `/api/reservas/historial` | Obtener historial de reservas del usuario |
+| GET | `/api/reservas/historial/detalle/{id}` | Obtener detalle de una reserva propia |
+| PUT | `/api/reservas/editar` | Editar una reserva propia |
+| DELETE | `/api/reservas/eliminar/{id}` | Eliminar una reserva propia |
+
+### Endpoints de Admin (requieren rol ADMIN)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/reservas/admin/historial/usuario/{userId}` | Ver reservas de cualquier usuario |
+| GET | `/api/reservas/admin/detalle/{id}` | Ver detalle de cualquier reserva |
+| PUT | `/api/reservas/admin/editar` | Editar cualquier reserva |
+
+### Modelo de Datos
+
+La entidad `Reserva` ahora incluye:
+- **user_id**: FK a la tabla `users` - propietario de la reserva
+- **id_cliente**: FK a la tabla `cliente` - cliente de la reserva
+
+### Seguridad de Reservas
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Usuario "juan" hace: GET /api/reservas/historial            │
+├─────────────────────────────────────────────────────────────┤
+│ 1. JwtAuthenticationFilter valida el token                  │
+│ 2. SecurityContext contiene la identidad de "juan"          │
+│ 3. ReservaService.getCurrentUser() obtiene el User          │
+│ 4. Query: SELECT * FROM reserva WHERE user_id = juan.id     │
+│ 5. Solo devuelve las reservas de "juan"                     │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Usuario "juan" hace: GET /api/reservas/historial/detalle/5  │
+│ (donde la reserva 5 pertenece a "pedro")                    │
+├─────────────────────────────────────────────────────────────┤
+│ 1. JwtAuthenticationFilter valida el token                  │
+│ 2. ReservaService busca: findByIdReservaAndUserId(5, juan)  │
+│ 3. No encuentra la reserva → Devuelve 404                   │
+│ 4. Juan NO puede ver las reservas de Pedro                  │
+└─────────────────────────────────────────────────────────────┘
+```
+

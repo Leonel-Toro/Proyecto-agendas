@@ -131,21 +131,24 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 
-                // Public reservation endpoints (existing functionality)
+                // Protected reservation endpoints (require authentication)
                 .requestMatchers(HttpMethod.POST, "/api/reservas/agendar").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/reservas/lista/medios_pago").authenticated()
-
-                // Protected reservation endpoints
                 .requestMatchers(HttpMethod.GET, "/api/reservas/historial").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/reservas/historial/detalle/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/reservas/editar").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/reservas/eliminar/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/reservas/lista/medios_pago").authenticated()
+
+                // Admin reservation endpoints (require ADMIN role)
+                .requestMatchers("/api/reservas/admin/**").hasRole("ADMIN")
 
                 // Protected auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/auth/check-session").authenticated()
 
-                // Admin only endpoints
+                // Admin only endpoints (general)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                 // All other requests require authentication
