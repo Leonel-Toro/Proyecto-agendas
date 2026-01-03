@@ -90,19 +90,11 @@ public class ReservaService {
             throw new IllegalArgumentException("El nombre del producto no debe ser vacio.");
         }
 
-        Cliente cliente = null;
-        if (reservaClienteDTO.getEmailCliente() != null && !reservaClienteDTO.getEmailCliente().equals("")) {
-            cliente = clienteRepository.findByEmail(reservaClienteDTO.getEmailCliente().trim());
-        }
+        Cliente cliente = new Cliente();
         MedioContacto medioSeleccionado = MedioContacto.findById(Integer.parseInt(reservaClienteDTO.getMedioCliente()));
-        if (cliente == null) {
-            // Crea cliente nuevo si no existe por email
-            cliente = new Cliente();
-            cliente.setNombre(reservaClienteDTO.getNombreCliente().trim());
-            cliente.setEmail(!reservaClienteDTO.getEmailCliente().isEmpty() ? reservaClienteDTO.getEmailCliente().trim() : null);
-            cliente.setTelefono(!reservaClienteDTO.getTelefonoCliente().isEmpty() ? reservaClienteDTO.getTelefonoCliente().trim() : null);
-            cliente.setMedio(medioSeleccionado);
-        }
+
+        cliente.setNombre(reservaClienteDTO.getNombreCliente().trim());
+        cliente.setMedio(medioSeleccionado);
 
         Reserva r = new Reserva();
         EstadoReserva estadoSeleccionado = EstadoReserva.findEstado(Integer.parseInt(reservaClienteDTO.getEstado()));
@@ -229,8 +221,8 @@ public class ReservaService {
 
         if (reservaClienteDTO.getFechaTermino() != null) {
             LocalDateTime inicio = reservaClienteDTO.getFechaTermino().toLocalDateTime();
-            if (inicio.isBefore(LocalDateTime.now()))
-                throw new IllegalArgumentException("La fecha de termino debe ser futura.");
+            if (inicio.isBefore(r.getFechaReserva().toLocalDateTime()))
+                throw new IllegalArgumentException("La fecha de termino debe ser mayor a la fecha de reserva.");
             r.setFechaTermino(reservaClienteDTO.getFechaTermino());
         }
 
@@ -247,7 +239,25 @@ public class ReservaService {
 
         reservaRepository.save(r);
 
-        return reservaClienteDTO;
+        // Retornar el DTO con la reserva editada
+        ReservaClienteDTO respuesta = new ReservaClienteDTO();
+        respuesta.setId(r.getIdReserva());
+        respuesta.setPrecio(r.getPrecio());
+        respuesta.setAbonado(r.getAbonado());
+        respuesta.setEstado(r.getEstado().toString());
+        respuesta.setFechaReserva(r.getFechaReserva());
+        respuesta.setFechaTermino(r.getFechaTermino());
+        respuesta.setLugarEncuentro(r.getLugarEncuentro());
+        respuesta.setNombreProducto(r.getNombreProducto());
+        respuesta.setMensajePersonalizado(r.getMensajePersonalizado());
+
+        Optional<Cliente> optionalCliente = clienteRepository.findById(r.getCliente().getIdCliente());
+        if (optionalCliente.isPresent()) {
+            Cliente cliente = optionalCliente.get();
+            respuesta.setNombreCliente(cliente.getNombre());
+            respuesta.setMedioCliente(cliente.getMedio().toString());
+        }
+        return respuesta;
     }
 
     /**
