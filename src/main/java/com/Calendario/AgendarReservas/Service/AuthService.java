@@ -66,7 +66,12 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
-    @Transactional
+    /**
+     * Login - No necesita @Transactional aquí porque:
+     * - La autenticación es de solo lectura
+     * - refreshTokenService.createRefreshToken() maneja su propia transacción
+     * - Evita UnexpectedRollbackException cuando hay BadCredentialsException
+     */
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
         try {
             // Authenticate user
@@ -99,7 +104,8 @@ public class AuthService {
 
             logger.info("Usuario {} inició sesión exitosamente desde IP: {}", user.getUsername(), ipAddress);
 
-            return AuthResponse.success("Inicio de sesión exitoso", createUserInfo(user));
+            // Return tokens in body for Safari/iOS compatibility
+            return AuthResponse.successWithTokens("Inicio de sesión exitoso", createUserInfo(user), accessToken, refreshToken.getToken());
 
         } catch (BadCredentialsException e) {
             logger.warn("Intento de login fallido para: {}", request.getUsernameOrEmail());
@@ -114,7 +120,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
         // Check if username exists
         if (userRepository.existsByUsername(request.getUsername())) {
             return AuthResponse.error("El nombre de usuario ya está en uso");
@@ -138,10 +144,23 @@ public class AuthService {
 
         logger.info("Nuevo usuario registrado: {}", user.getUsername());
 
-        return AuthResponse.success("Usuario registrado exitosamente");
+        // Auto-login: Generate tokens for the new user
+        String accessToken = jwtService.generateAccessToken(user);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        String ipAddress = getClientIpAddress(httpRequest);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, userAgent, ipAddress);
+
+        // Set cookies
+        addTokenCookies(response, accessToken, refreshToken.getToken());
+
+        // Return tokens in body for Safari/iOS compatibility
+        return AuthResponse.successWithTokens("Usuario registrado exitosamente", createUserInfo(user), accessToken, refreshToken.getToken());
     }
 
-    @Transactional
+    /**
+     * Logout - No necesita @Transactional aquí porque:
+     * - refreshTokenService.revokeToken() maneja su propia transacción
+     */
     public AuthResponse logout(HttpServletRequest request, HttpServletResponse response) {
         // Get refresh token from cookie
         String refreshToken = extractTokenFromCookie(request, REFRESH_TOKEN_COOKIE);
@@ -180,9 +199,37 @@ public class AuthService {
         return AuthResponse.success("Sesión activa", createUserInfo(user));
     }
 
-    @Transactional
-    public AuthResponse refreshAccessToken(HttpServletRequest request, HttpServletResponse response) {
-        String refreshTokenValue = extractTokenFromCookie(request, REFRESH_TOKEN_COOKIE);
+    /**
+     * Refresh Access Token - No necesita @Transactional aquí porque:
+     * - refreshTokenService maneja sus propias transacciones
+     * - Evita UnexpectedRollbackException cuando el token es inválido/expirado
+     */
+    public AuthResponse refreshAccessToken(HttpServletRequest request, HttpServletResponse response, String bodyRefreshToken) {
+        // Try to get refresh token from multiple sources (Safari/iOS compatibility)
+        // Priority: 1. Request body, 2. Authorization header, 3. Cookie
+        String refreshTokenValue = null;
+
+        // 1. Try from request body
+        if (bodyRefreshToken != null && !bodyRefreshToken.isEmpty()) {
+            refreshTokenValue = bodyRefreshToken;
+            logger.debug("Refresh token obtenido del body");
+        }
+
+        // 2. Try from Authorization header
+        if (refreshTokenValue == null) {
+            refreshTokenValue = extractTokenFromHeader(request);
+            if (refreshTokenValue != null) {
+                logger.debug("Refresh token obtenido del header Authorization");
+            }
+        }
+
+        // 3. Try from cookie
+        if (refreshTokenValue == null) {
+            refreshTokenValue = extractTokenFromCookie(request, REFRESH_TOKEN_COOKIE);
+            if (refreshTokenValue != null) {
+                logger.debug("Refresh token obtenido de la cookie");
+            }
+        }
 
         if (refreshTokenValue == null) {
             return AuthResponse.error("Refresh token no encontrado");
@@ -207,7 +254,8 @@ public class AuthService {
             // Set new cookies
             addTokenCookies(response, newAccessToken, newRefreshToken.getToken());
 
-            return AuthResponse.success("Token actualizado", createUserInfo(user));
+            // Return tokens in body for Safari/iOS compatibility
+            return AuthResponse.successWithTokens("Token actualizado", createUserInfo(user), newAccessToken, newRefreshToken.getToken());
 
         } catch (Exception e) {
             logger.error("Error al refrescar token: {}", e.getMessage());
@@ -280,6 +328,14 @@ public class AuthService {
                     return cookie.getValue();
                 }
             }
+        }
+        return null;
+    }
+
+    public String extractTokenFromHeader(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
         }
         return null;
     }

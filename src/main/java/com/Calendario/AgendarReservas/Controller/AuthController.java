@@ -2,6 +2,7 @@ package com.Calendario.AgendarReservas.Controller;
 
 import com.Calendario.AgendarReservas.DTO.AuthResponse;
 import com.Calendario.AgendarReservas.DTO.LoginRequest;
+import com.Calendario.AgendarReservas.DTO.RefreshTokenRequest;
 import com.Calendario.AgendarReservas.DTO.RegisterRequest;
 import com.Calendario.AgendarReservas.Service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +25,7 @@ public class AuthController {
     /**
      * Login endpoint - Public
      * POST /api/auth/login
+     * Returns tokens in both cookies and response body for Safari/iOS compatibility
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
@@ -43,10 +45,15 @@ public class AuthController {
     /**
      * Register endpoint - Public
      * POST /api/auth/register
+     * Returns tokens in both cookies and response body for Safari/iOS compatibility
      */
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse authResponse = authService.register(request);
+    public ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
+        AuthResponse authResponse = authService.register(request, httpRequest, response);
 
         if (authResponse.isSuccess()) {
             return ResponseEntity.status(201).body(authResponse);
@@ -71,6 +78,8 @@ public class AuthController {
     /**
      * Check session endpoint - Private (requires authentication)
      * GET /api/auth/check-session
+     * Accepts access token from: 1. Authorization header, 2. Cookie
+     * For Safari/iOS compatibility when cookies are blocked by ITP
      */
     @GetMapping("/check-session")
     public ResponseEntity<AuthResponse> checkSession(
@@ -87,15 +96,19 @@ public class AuthController {
     }
 
     /**
-     * Refresh token endpoint - Public (but requires valid refresh token in cookie)
+     * Refresh token endpoint - Public (but requires valid refresh token)
      * POST /api/auth/refresh
+     * Accepts refresh token from: 1. Request body, 2. Authorization header, 3. Cookie
+     * Returns new tokens in both cookies and response body for Safari/iOS compatibility
      */
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(
+            @RequestBody(required = false) RefreshTokenRequest refreshTokenRequest,
             HttpServletRequest request,
             HttpServletResponse response) {
 
-        AuthResponse authResponse = authService.refreshAccessToken(request, response);
+        String bodyRefreshToken = refreshTokenRequest != null ? refreshTokenRequest.getRefreshToken() : null;
+        AuthResponse authResponse = authService.refreshAccessToken(request, response, bodyRefreshToken);
 
         if (authResponse.isSuccess()) {
             return ResponseEntity.ok(authResponse);

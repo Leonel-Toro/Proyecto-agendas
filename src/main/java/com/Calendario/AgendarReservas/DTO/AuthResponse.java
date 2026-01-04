@@ -7,6 +7,8 @@ public class AuthResponse {
     private boolean success;
     private String message;
     private UserInfo user;
+    private String accessToken;
+    private String refreshToken;
 
     public AuthResponse() {}
 
@@ -21,12 +23,31 @@ public class AuthResponse {
         this.user = user;
     }
 
+    public AuthResponse(boolean success, String message, UserInfo user, String accessToken, String refreshToken) {
+        this.success = success;
+        this.message = message;
+        this.user = user;
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+    }
+
     public static AuthResponse success(String message, UserInfo user) {
         return new AuthResponse(true, message, user);
     }
 
     public static AuthResponse success(String message) {
         return new AuthResponse(true, message);
+    }
+
+    public static AuthResponse successWithTokens(String message, UserInfo user, String accessToken, String refreshToken) {
+        return new AuthResponse(true, message, user, accessToken, refreshToken);
+    }
+
+    public static AuthResponse successWithTokens(String message, String accessToken, String refreshToken) {
+        AuthResponse response = new AuthResponse(true, message);
+        response.setAccessToken(accessToken);
+        response.setRefreshToken(refreshToken);
+        return response;
     }
 
     public static AuthResponse error(String message) {
@@ -56,6 +77,22 @@ public class AuthResponse {
 
     public void setUser(UserInfo user) {
         this.user = user;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
     // Inner class for safe user info (no sensitive data)

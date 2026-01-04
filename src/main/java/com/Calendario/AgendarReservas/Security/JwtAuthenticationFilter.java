@@ -40,12 +40,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         try {
-            String jwt = extractTokenFromCookie(request);
+            String jwt = extractTokenFromHeader(request);
 
-            if (jwt == null) {
-                logger.debug("No se encontró cookie access_token para: {}", request.getRequestURI());
+            if (jwt != null) {
+                logger.debug("Token encontrado en header Authorization para: {}", request.getRequestURI());
             } else {
-                logger.debug("Cookie access_token encontrada para: {}", request.getRequestURI());
+                jwt = extractTokenFromCookie(request);
+                if (jwt != null) {
+                    logger.debug("Token encontrado en cookie access_token para: {}", request.getRequestURI());
+                } else {
+                    logger.debug("No se encontró token para: {}", request.getRequestURI());
+                }
             }
 
             if (jwt != null && jwtService.validateToken(jwt)) {
@@ -79,6 +84,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String extractTokenFromHeader(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 
     private String extractTokenFromCookie(HttpServletRequest request) {
