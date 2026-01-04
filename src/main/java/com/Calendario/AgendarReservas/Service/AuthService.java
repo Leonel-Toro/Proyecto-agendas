@@ -48,7 +48,7 @@ public class AuthService {
     @Value("${app.cookie.secure:true}")
     private boolean secureCookie;
 
-    @Value("${app.cookie.same-site:Strict}")
+    @Value("${app.cookie.same-site:None}")
     private String sameSite;
 
     @Value("${app.cookie.domain:}")
@@ -104,6 +104,9 @@ public class AuthService {
         } catch (BadCredentialsException e) {
             logger.warn("Intento de login fallido para: {}", request.getUsernameOrEmail());
             return AuthResponse.error("Credenciales inválidas");
+        } catch (io.jsonwebtoken.security.WeakKeyException e) {
+            logger.error("Error de configuración JWT - clave demasiado débil: {}", e.getMessage());
+            return AuthResponse.error("Error de configuración del servidor. Contacte al administrador.");
         } catch (Exception e) {
             logger.error("Error durante el login: {}", e.getMessage());
             return AuthResponse.error("Error durante el inicio de sesión");

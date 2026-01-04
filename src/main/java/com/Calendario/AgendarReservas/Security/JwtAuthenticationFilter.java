@@ -42,8 +42,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = extractTokenFromCookie(request);
 
+            if (jwt == null) {
+                logger.debug("No se encontró cookie access_token para: {}", request.getRequestURI());
+            } else {
+                logger.debug("Cookie access_token encontrada para: {}", request.getRequestURI());
+            }
+
             if (jwt != null && jwtService.validateToken(jwt)) {
                 String username = jwtService.extractUsername(jwt);
+                logger.debug("Token válido para usuario: {}", username);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
@@ -61,8 +68,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
 
                         SecurityContextHolder.getContext().setAuthentication(authentication);
+                        logger.debug("Autenticación establecida para: {}", username);
                     }
                 }
+            } else if (jwt != null) {
+                logger.warn("Token JWT inválido o expirado para: {}", request.getRequestURI());
             }
         } catch (Exception e) {
             logger.error("Error al procesar autenticación JWT: {}", e.getMessage());
