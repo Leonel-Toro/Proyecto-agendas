@@ -1,6 +1,5 @@
 package com.Calendario.AgendarReservas.Service;
 
-import com.Calendario.AgendarReservas.Config.JwtSecretConfig;
 import com.Calendario.AgendarReservas.Model.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -22,10 +21,8 @@ public class JwtService {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
 
-    private final JwtSecretConfig jwtSecretConfig;
-
-    @Value("${app.jwt.secret:}")
-    private String configuredSecret;
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
 
     @Value("${app.jwt.access-token-expiration-ms}")
     private long accessTokenExpirationMs;
@@ -36,27 +33,11 @@ public class JwtService {
     @Value("${app.jwt.issuer}")
     private String issuer;
 
-    public JwtService(JwtSecretConfig jwtSecretConfig) {
-        this.jwtSecretConfig = jwtSecretConfig;
-    }
-
     private SecretKey getSigningKey() {
-        String secret = getEffectiveSecret();
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private String getEffectiveSecret() {
-        // Prioridad: Variable de entorno > Configuración > JwtSecretConfig
-        String envSecret = System.getenv("JWT_SECRET");
-        if (envSecret != null && !envSecret.isBlank()) {
-            return envSecret;
-        }
-        if (configuredSecret != null && !configuredSecret.isBlank()) {
-            return configuredSecret;
-        }
-        return jwtSecretConfig.getEffectiveSecret();
-    }
 
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();

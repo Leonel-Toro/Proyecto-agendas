@@ -85,7 +85,13 @@ public class SecurityConfig {
                     csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(requestHandler)
-                        .ignoringRequestMatchers("/api/auth/login", "/api/auth/register");
+                        .ignoringRequestMatchers(
+                            "/api/auth/login",
+                            "/api/auth/register",
+                            "/api/auth/refresh",
+                            "/api/auth/logout",
+                            "/api/auth/csrf"
+                        );
                 } else {
                     csrf.disable();
                 }
