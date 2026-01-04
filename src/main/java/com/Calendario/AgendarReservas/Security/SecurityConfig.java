@@ -139,12 +139,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 
-                // Protected reservation endpoints (require authentication)
-                .requestMatchers(HttpMethod.POST, "/api/reservas/agendar").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/reservas/historial").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/reservas/historial/detalle/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/reservas/editar").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/reservas/eliminar/**").authenticated()
+                // Protected reservation endpoints - ADMIN only
+                .requestMatchers(HttpMethod.POST, "/api/reservas/agendar").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/reservas/historial").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/reservas/historial/detalle/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/reservas/editar").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/reservas/eliminar/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/reservas/lista/medios_pago").authenticated()
 
                 // Admin reservation endpoints (require ADMIN role)

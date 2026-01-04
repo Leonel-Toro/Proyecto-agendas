@@ -19,10 +19,11 @@ public class ReservaController {
     private ReservaService reservaService;
 
     /**
-     * Crear nueva reserva - Requiere autenticación
+     * Crear nueva reserva - Solo ADMIN
      * La reserva se asigna automáticamente al usuario autenticado
      */
     @PostMapping("/agendar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseApi<ReservaClienteDTO>> agendarCliente(@RequestBody ReservaClienteDTO reservar) {
         try {
             ReservaClienteDTO resultado = reservaService.agendarCliente(reservar);
@@ -63,9 +64,10 @@ public class ReservaController {
     }
 
     /**
-     * Obtener historial de reservas del usuario autenticado
+     * Obtener historial de reservas - Solo ADMIN
      */
     @GetMapping("/historial")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseApi<List<ReservaClienteDTO>>> obtenerHistorial() {
         try {
             List<ReservaClienteDTO> historial = reservaService.obtenerHistorial();
@@ -80,9 +82,10 @@ public class ReservaController {
     }
 
     /**
-     * Editar una reserva del usuario autenticado
+     * Editar una reserva - Solo ADMIN
      */
     @PutMapping("/editar")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseApi<ReservaClienteDTO>> editarReserva(@RequestBody ReservaClienteDTO reservaClienteDTO) {
         try {
             ReservaClienteDTO resultado = reservaService.editarReserva(reservaClienteDTO);
