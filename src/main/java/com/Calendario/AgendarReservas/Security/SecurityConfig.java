@@ -90,7 +90,8 @@ public class SecurityConfig {
                             "/api/auth/register",
                             "/api/auth/refresh",
                             "/api/auth/logout",
-                            "/api/auth/csrf"
+                            "/api/auth/csrf",
+                            "/api/reservas/**"
                         );
                 } else {
                     csrf.disable();
