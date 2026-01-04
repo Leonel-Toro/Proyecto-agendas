@@ -348,12 +348,9 @@ public class ReservaService {
         if (optionalCliente.isPresent()) {
             Cliente cliente = optionalCliente.get();
             dto.setNombreCliente(cliente.getNombre());
-            dto.setEmailCliente(cliente.getEmail());
             dto.setMedioCliente(cliente.getMedio().toString());
-            dto.setTelefonoCliente(cliente.getTelefono());
         }
 
         return dto;
     }
 }
-

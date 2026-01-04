@@ -1,16 +1,21 @@
 services:
   db:
-    image: mariadb:11
-    container_name: mariadb
+    image: postgres:16-alpine
+    container_name: postgres_agendas
     environment:
-      MARIADB_ROOT_PASSWORD: passroot
-      MARIADB_DATABASE: calendario_reservas
-      MARIADB_USER: appuser
-      MARIADB_PASSWORD: secretpassword
+      POSTGRES_DB: agendas_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 20435Leonel
       TZ: "UTC"
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mariadbdata:/var/lib/mysql
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
-  mariadbdata:
+  pgdata:
