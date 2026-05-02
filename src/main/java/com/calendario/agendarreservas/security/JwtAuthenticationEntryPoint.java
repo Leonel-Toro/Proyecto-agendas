@@ -1,4 +1,4 @@
-package com.Calendario.AgendarReservas.Security;
+package com.calendario.agendarreservas.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,4 +43,3 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         mapper.writeValue(response.getOutputStream(), body);
     }
 }
-

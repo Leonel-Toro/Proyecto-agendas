@@ -1,4 +1,4 @@
-package com.Calendario.AgendarReservas.Model;
+package com.calendario.agendarreservas.model;
 
 public enum Role {
     ROLE_USER,

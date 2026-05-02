@@ -1,5 +1,8 @@
-package com.Calendario.AgendarReservas.Model;
+package com.calendario.agendarreservas.model;
 
+import lombok.Getter;
+
+@Getter
 public enum MedioContacto {
     DIRECTO(1, "Directo"),
     FACEBOOK(2, "Facebook"),
@@ -13,10 +16,8 @@ public enum MedioContacto {
         this.id = id;
         this.label = label;
     }
-    public int getId() { return id; }
-    public String getLabel() { return label; }
 
-    public static MedioContacto findById(int idMedio){
+    public static MedioContacto findById(int idMedio) {
         for (MedioContacto m : values()) {
             if (m.id == idMedio) return m;
         }

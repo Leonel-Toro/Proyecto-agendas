@@ -1,21 +1,15 @@
-package com.Calendario.AgendarReservas.DTO;
+package com.calendario.agendarreservas.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class RefreshTokenRequest {
 
     private String refreshToken;
-
-    public RefreshTokenRequest() {}
-
-    public RefreshTokenRequest(String refreshToken) {
-        this.refreshToken = refreshToken;
-    }
-
-    public String getRefreshToken() {
-        return refreshToken;
-    }
-
-    public void setRefreshToken(String refreshToken) {
-        this.refreshToken = refreshToken;
-    }
 }
-

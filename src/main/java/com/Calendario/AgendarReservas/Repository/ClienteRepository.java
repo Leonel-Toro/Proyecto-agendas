@@ -1,6 +1,6 @@
-package com.Calendario.AgendarReservas.Repository;
+package com.calendario.agendarreservas.repository;
 
-import com.Calendario.AgendarReservas.Model.Cliente;
+import com.calendario.agendarreservas.model.Cliente;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

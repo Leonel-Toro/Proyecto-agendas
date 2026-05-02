@@ -1,6 +1,7 @@
-package com.Calendario.AgendarReservas.Security;
+package com.calendario.agendarreservas.security;
 
-import com.Calendario.AgendarReservas.Service.CustomUserDetailsService;
+import com.calendario.agendarreservas.service.CustomUserDetailsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -38,18 +40,8 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private String allowedOriginsString;
 
-    @Value("${app.csrf.enabled:true}")
+    @Value("${app.csrf.enabled}")
     private boolean csrfEnabled;
-
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-                          CustomAccessDeniedHandler accessDeniedHandler,
-                          CustomUserDetailsService userDetailsService) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-        this.accessDeniedHandler = accessDeniedHandler;
-        this.userDetailsService = userDetailsService;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -71,15 +63,11 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CSRF Configuration
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName("_csrf");
 
         http
-            // Session Management - Stateless for JWT
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-            // CSRF Protection with Cookie-based token for SPA
             .csrf(csrf -> {
                 if (csrfEnabled) {
                     csrf
@@ -97,11 +85,7 @@ public class SecurityConfig {
                     csrf.disable();
                 }
             })
-
-            // CORS Configuration
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-            // Security Headers
             .headers(h -> h
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; " +
@@ -119,46 +103,27 @@ public class SecurityConfig {
                     org.springframework.security.web.header.writers.XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
                 .contentTypeOptions(cto -> {})
             )
-
-            // Exception Handling
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)
             )
-
-            // Authentication Provider
             .authenticationProvider(authenticationProvider())
-
-            // JWT Filter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
-            // Authorization Rules
             .authorizeHttpRequests(auth -> auth
-                // Public auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-
-                // Protected reservation endpoints - ADMIN only
                 .requestMatchers(HttpMethod.POST, "/api/reservas/agendar").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/reservas/historial").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/reservas/historial/detalle/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/reservas/editar").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/reservas/eliminar/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/reservas/lista/medios_pago").authenticated()
-
-                // Admin reservation endpoints (require ADMIN role)
                 .requestMatchers("/api/reservas/admin/**").hasRole("ADMIN")
-
-                // Protected auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/auth/check-session").authenticated()
-
-                // Admin only endpoints (general)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-
-                // All other requests require authentication
                 .anyRequest().authenticated()
             );
 

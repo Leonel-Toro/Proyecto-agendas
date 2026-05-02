@@ -1,5 +1,8 @@
-package com.Calendario.AgendarReservas.Model;
+package com.calendario.agendarreservas.model;
 
+import lombok.Getter;
+
+@Getter
 public enum EstadoReserva {
     PENDIENTE(1, "Pendiente"),
     ABONADA(2, "Abonada"),
@@ -14,10 +17,8 @@ public enum EstadoReserva {
         this.id = id;
         this.label = label;
     }
-    public int getId() { return id; }
-    public String getLabel() { return label; }
 
-    public static EstadoReserva findEstado(int idEstado){
+    public static EstadoReserva findEstado(int idEstado) {
         for (EstadoReserva e : values()) {
             if (e.id == idEstado) return e;
         }

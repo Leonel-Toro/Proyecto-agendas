@@ -1,10 +1,10 @@
-package com.Calendario.AgendarReservas.Controller;
+package com.calendario.agendarreservas.controller;
 
-import com.Calendario.AgendarReservas.DTO.AuthResponse;
-import com.Calendario.AgendarReservas.DTO.LoginRequest;
-import com.Calendario.AgendarReservas.DTO.RefreshTokenRequest;
-import com.Calendario.AgendarReservas.DTO.RegisterRequest;
-import com.Calendario.AgendarReservas.Service.AuthService;
+import com.calendario.agendarreservas.dto.AuthResponse;
+import com.calendario.agendarreservas.dto.LoginRequest;
+import com.calendario.agendarreservas.dto.RefreshTokenRequest;
+import com.calendario.agendarreservas.dto.RegisterRequest;
+import com.calendario.agendarreservas.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;

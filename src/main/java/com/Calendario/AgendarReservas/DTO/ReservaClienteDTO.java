@@ -1,6 +1,16 @@
-package com.Calendario.AgendarReservas.DTO;
+package com.calendario.agendarreservas.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.sql.Timestamp;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReservaClienteDTO {
     private long id;
     private Long precio;
@@ -13,93 +23,4 @@ public class ReservaClienteDTO {
     private String medioCliente;
     private String mensajePersonalizado;
     private Long abonado;
-
-    public ReservaClienteDTO() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-    public void setId(long id) {
-        this.id = id;
-    }
-    public Long getPrecio() {
-        return precio;
-    }
-
-    public void setPrecio(Long precio) {
-        this.precio = precio;
-    }
-
-    public Timestamp getFechaReserva() {
-        return fechaReserva;
-    }
-
-    public void setFechaReserva(Timestamp fechaReserva) {
-        this.fechaReserva = fechaReserva;
-    }
-
-    public String getEstado() {
-        return estado;
-    }
-
-    public void setEstado(String estado) {
-        this.estado = estado;
-    }
-
-    public Timestamp getFechaTermino() {
-        return fechaTermino;
-    }
-
-    public void setFechaTermino(Timestamp fechaTermino) {
-        this.fechaTermino = fechaTermino;
-    }
-
-    public String getLugarEncuentro() {
-        return lugarEncuentro;
-    }
-
-    public void setLugarEncuentro(String lugarEncuentro) {
-        this.lugarEncuentro = lugarEncuentro;
-    }
-
-    public String getNombreCliente() {
-        return nombreCliente;
-    }
-
-    public void setNombreCliente(String nombreCliente) {
-        this.nombreCliente = nombreCliente;
-    }
-
-    public String getMedioCliente() {
-        return medioCliente;
-    }
-
-    public void setMedioCliente(String medioCliente) {
-        this.medioCliente = medioCliente;
-    }
-
-    public String getNombreProducto() {
-        return nombreProducto;
-    }
-
-    public void setNombreProducto(String nombreProducto) {
-        this.nombreProducto = nombreProducto;
-    }
-
-    public String getMensajePersonalizado() {
-        return mensajePersonalizado;
-    }
-
-    public void setMensajePersonalizado(String mensajePersonalizado) {
-        this.mensajePersonalizado = mensajePersonalizado;
-    }
-
-    public Long getAbonado() {
-        return abonado;
-    }
-
-    public void setAbonado(Long abonado) {
-        this.abonado = abonado;
-    }
 }

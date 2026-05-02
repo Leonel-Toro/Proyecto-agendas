@@ -1,7 +1,7 @@
-package com.Calendario.AgendarReservas.Service;
+package com.calendario.agendarreservas.service;
 
-import com.Calendario.AgendarReservas.Model.User;
-import com.Calendario.AgendarReservas.Repository.UserRepository;
+import com.calendario.agendarreservas.model.User;
+import com.calendario.agendarreservas.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

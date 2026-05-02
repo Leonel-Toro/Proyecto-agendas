@@ -1,4 +1,4 @@
-package com.Calendario.AgendarReservas;
+package com.calendario.agendarreservas;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

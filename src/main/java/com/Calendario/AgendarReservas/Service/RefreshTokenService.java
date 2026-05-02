@@ -1,89 +1,21 @@
-package com.Calendario.AgendarReservas.Service;
+package com.calendario.agendarreservas.service;
 
-import com.Calendario.AgendarReservas.Model.RefreshToken;
-import com.Calendario.AgendarReservas.Model.User;
-import com.Calendario.AgendarReservas.Repository.RefreshTokenRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import com.calendario.agendarreservas.model.RefreshToken;
+import com.calendario.agendarreservas.model.User;
 
-import java.time.Instant;
 import java.util.Optional;
 
-@Service
-public class RefreshTokenService {
+public interface RefreshTokenService {
 
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final JwtService jwtService;
+    RefreshToken createRefreshToken(User user, String userAgent, String ipAddress);
 
-    @Value("${app.jwt.refresh-token-expiration-ms}")
-    private long refreshTokenExpirationMs;
+    Optional<RefreshToken> findByToken(String token);
 
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, JwtService jwtService) {
-        this.refreshTokenRepository = refreshTokenRepository;
-        this.jwtService = jwtService;
-    }
+    RefreshToken verifyExpiration(RefreshToken token);
 
-    @Transactional
-    public RefreshToken createRefreshToken(User user, String userAgent, String ipAddress) {
-        // Revoke all existing tokens for this user (single session policy)
-        refreshTokenRepository.revokeAllUserTokens(user);
+    void revokeToken(String token);
 
-        String tokenValue = jwtService.generateRefreshToken(user);
+    void revokeAllUserTokens(User user);
 
-        RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setUser(user);
-        refreshToken.setToken(tokenValue);
-        refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenExpirationMs));
-        refreshToken.setUserAgent(userAgent);
-        refreshToken.setIpAddress(ipAddress);
-
-        return refreshTokenRepository.save(refreshToken);
-    }
-
-    public Optional<RefreshToken> findByToken(String token) {
-        return refreshTokenRepository.findByTokenAndRevokedFalse(token);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public RefreshToken verifyExpiration(RefreshToken token) {
-        if (token.isExpired()) {
-            refreshTokenRepository.delete(token);
-            throw new RuntimeException("Refresh token expirado. Por favor, inicie sesión nuevamente.");
-        }
-
-        if (token.isRevoked()) {
-            throw new RuntimeException("Refresh token revocado. Por favor, inicie sesión nuevamente.");
-        }
-
-        return token;
-    }
-
-    @Transactional
-    public void revokeToken(String token) {
-        refreshTokenRepository.findByToken(token).ifPresent(rt -> {
-            rt.setRevoked(true);
-            refreshTokenRepository.save(rt);
-        });
-    }
-
-    @Transactional
-    public void revokeAllUserTokens(User user) {
-        refreshTokenRepository.revokeAllUserTokens(user);
-    }
-
-    @Transactional
-    public void revokeAllUserTokensById(Long userId) {
-        refreshTokenRepository.revokeAllUserTokensById(userId);
-    }
-
-    // Scheduled task to clean up expired tokens every hour
-    @Scheduled(fixedRate = 3600000)
-    @Transactional
-    public void cleanupExpiredTokens() {
-        refreshTokenRepository.deleteAllExpiredTokens(Instant.now());
-    }
+    void revokeAllUserTokensById(Long userId);
 }
-

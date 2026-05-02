@@ -1,4 +1,4 @@
-package com.Calendario.AgendarReservas.Exception;
+package com.calendario.agendarreservas.exception;
 
 public class TokenRefreshException extends RuntimeException {
 

@@ -1,8 +1,8 @@
-package com.Calendario.AgendarReservas.Config;
+package com.calendario.agendarreservas.config;
 
-import com.Calendario.AgendarReservas.Model.Role;
-import com.Calendario.AgendarReservas.Model.User;
-import com.Calendario.AgendarReservas.Repository.UserRepository;
+import com.calendario.agendarreservas.model.Role;
+import com.calendario.agendarreservas.model.User;
+import com.calendario.agendarreservas.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,13 +38,11 @@ public class DataInitializer {
                 return;
             }
 
-            // Check if admin user already exists
             if (userRepository.existsByUsername(adminUsername)) {
                 logger.info("Usuario admin '{}' ya existe", adminUsername);
                 return;
             }
 
-            // Create admin user
             User admin = new User();
             admin.setUsername(adminUsername);
             admin.setEmail(adminEmail);
@@ -62,4 +60,3 @@ public class DataInitializer {
         };
     }
 }
-
