@@ -1,5 +1,6 @@
 package com.calendario.agendarreservas.dto;
 
+import com.calendario.agendarreservas.validation.ValidRut;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -7,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -26,4 +29,28 @@ public class RegisterRequest {
     @NotBlank(message = "La contraseña es requerida")
     @Size(min = 8, max = 120, message = "La contraseña debe tener entre 8 y 120 caracteres")
     private String password;
+
+    @NotBlank(message = "El nombre es requerido")
+    @Size(max = 100)
+    private String nombre;
+
+    @NotBlank(message = "Los apellidos son requeridos")
+    @Size(max = 150)
+    private String apellidos;
+
+    @ValidRut
+    private String rut;
+
+    @Size(max = 20)
+    private String telefono;
+
+    private LocalDate fechaNacimiento;
+
+    private Integer edad;
+
+    private String genero;
+
+    private Boolean pacienteAnterior;
+
+    private Boolean estudiante;
 }

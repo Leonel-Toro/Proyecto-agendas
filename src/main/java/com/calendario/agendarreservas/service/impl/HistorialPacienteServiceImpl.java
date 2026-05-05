@@ -1,0 +1,139 @@
+package com.calendario.agendarreservas.service.impl;
+
+import com.calendario.agendarreservas.dto.HistorialPacienteDTO;
+import com.calendario.agendarreservas.dto.NotasSesionDTO;
+import com.calendario.agendarreservas.exception.ResourceNotFoundException;
+import com.calendario.agendarreservas.exception.UnauthorizedOperationException;
+import com.calendario.agendarreservas.mapper.HistorialPacienteMapper;
+import com.calendario.agendarreservas.model.HistorialPaciente;
+import com.calendario.agendarreservas.model.NotasSesion;
+import com.calendario.agendarreservas.model.Reserva;
+import com.calendario.agendarreservas.model.TipoSesion;
+import com.calendario.agendarreservas.repository.HistorialPacienteRepository;
+import com.calendario.agendarreservas.repository.NotasSesionRepository;
+import com.calendario.agendarreservas.repository.ReservaRepository;
+import com.calendario.agendarreservas.service.HistorialPacienteService;
+import com.calendario.agendarreservas.util.SecurityContextHelper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class HistorialPacienteServiceImpl implements HistorialPacienteService {
+
+    private final HistorialPacienteRepository historialPacienteRepository;
+    private final NotasSesionRepository notasSesionRepository;
+    private final ReservaRepository reservaRepository;
+    private final SecurityContextHelper securityContextHelper;
+    private final HistorialPacienteMapper historialPacienteMapper;
+
+    @Override
+    @Transactional
+    public HistorialPacienteDTO crearHistorial(HistorialPacienteDTO dto) {
+        if (dto.getIdReserva() == null)
+            throw new IllegalArgumentException("El ID de la reserva es obligatorio.");
+        if (historialPacienteRepository.existsByReservaIdReserva(dto.getIdReserva()))
+            throw new IllegalArgumentException("Ya existe un historial para esta reserva.");
+
+        Reserva reserva = reservaRepository.findById(dto.getIdReserva())
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", dto.getIdReserva()));
+
+        HistorialPaciente h = new HistorialPaciente();
+        h.setReserva(reserva);
+        h.setPaciente(reserva.getPaciente());
+        h.setPsicologo(reserva.getPsicologo());
+        h.setMotivoConsulta(dto.getMotivoConsulta() != null ? dto.getMotivoConsulta() : reserva.getMotivoConsulta());
+        if (dto.getTipoSesion() != null) h.setTipoSesion(TipoSesion.valueOf(dto.getTipoSesion()));
+        h.setCrisis(Boolean.TRUE.equals(dto.getCrisis()));
+        h.setAlta(Boolean.TRUE.equals(dto.getAlta()));
+        h.setPosibleAbandono(Boolean.TRUE.equals(dto.getPosibleAbandono()));
+        h.setNotasGenerales(dto.getNotasGenerales());
+
+        historialPacienteRepository.save(h);
+        return historialPacienteMapper.toDTO(h);
+    }
+
+    @Override
+    @Transactional
+    public HistorialPacienteDTO actualizarHistorial(Long id, HistorialPacienteDTO dto) {
+        HistorialPaciente h = historialPacienteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Historial", id));
+
+        if (dto.getMotivoConsulta() != null) h.setMotivoConsulta(dto.getMotivoConsulta());
+        if (dto.getTipoSesion() != null) h.setTipoSesion(TipoSesion.valueOf(dto.getTipoSesion()));
+        if (dto.getCrisis() != null) h.setCrisis(dto.getCrisis());
+        if (dto.getAlta() != null) h.setAlta(dto.getAlta());
+        if (dto.getPosibleAbandono() != null) h.setPosibleAbandono(dto.getPosibleAbandono());
+        if (dto.getNotasGenerales() != null) h.setNotasGenerales(dto.getNotasGenerales());
+
+        historialPacienteRepository.save(h);
+        return historialPacienteMapper.toDTO(h);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public HistorialPacienteDTO obtenerHistorialAdmin(Long id) {
+        return historialPacienteMapper.toDTO(
+                historialPacienteRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Historial", id)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HistorialPacienteDTO> obtenerHistorialPorPaciente(Long pacienteId) {
+        return historialPacienteRepository.findByPacienteIdOrderByFechaCreacionDesc(pacienteId)
+                .stream().map(historialPacienteMapper::toDTO).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HistorialPacienteDTO> obtenerHistorialPorPacienteYRango(Long pacienteId, Instant desde, Instant hasta) {
+        return historialPacienteRepository.findByPacienteIdAndRango(pacienteId, desde, hasta)
+                .stream().map(historialPacienteMapper::toDTO).toList();
+    }
+
+    @Override
+    @Transactional
+    public NotasSesionDTO agregarNota(Long idHistorial, NotasSesionDTO dto) {
+        HistorialPaciente h = historialPacienteRepository.findById(idHistorial)
+                .orElseThrow(() -> new ResourceNotFoundException("Historial", idHistorial));
+
+        NotasSesion nota = new NotasSesion();
+        nota.setHistorialPaciente(h);
+        nota.setNota(dto.getNota());
+        notasSesionRepository.save(nota);
+
+        return new NotasSesionDTO(nota.getIdNota(), idHistorial, nota.getNota(), nota.getFechaCreacion());
+    }
+
+    @Override
+    @Transactional
+    public void eliminarNota(Long idNota) {
+        if (!notasSesionRepository.existsById(idNota))
+            throw new ResourceNotFoundException("Nota", idNota);
+        notasSesionRepository.deleteById(idNota);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public HistorialPacienteDTO obtenerMiHistorial(Long id) {
+        Long userId = securityContextHelper.getCurrentUserId();
+        HistorialPaciente h = historialPacienteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Historial", id));
+        if (!h.getPaciente().getId().equals(userId))
+            throw new UnauthorizedOperationException("No tiene permisos para acceder a este historial.");
+        return historialPacienteMapper.toDTO(h);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HistorialPacienteDTO> obtenerMiHistorialCompleto() {
+        Long userId = securityContextHelper.getCurrentUserId();
+        return historialPacienteRepository.findByPacienteIdOrderByFechaCreacionDesc(userId)
+                .stream().map(historialPacienteMapper::toDTO).toList();
+    }
+}

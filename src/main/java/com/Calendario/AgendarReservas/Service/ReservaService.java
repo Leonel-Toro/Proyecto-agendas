@@ -1,28 +1,24 @@
 package com.calendario.agendarreservas.service;
 
-import com.calendario.agendarreservas.dto.ReservaClienteDTO;
+import com.calendario.agendarreservas.dto.ReservaDTO;
 
 import java.util.List;
 
 public interface ReservaService {
 
-    ReservaClienteDTO agendarCliente(ReservaClienteDTO reservaClienteDTO);
+    // Paciente
+    ReservaDTO crearReserva(ReservaDTO dto);
+    List<ReservaDTO> obtenerMisReservas();
+    ReservaDTO obtenerMiReserva(Long id);
+    ReservaDTO editarReserva(Long id, ReservaDTO dto);
+    void cancelarReserva(Long id);
 
-    List<ReservaClienteDTO> obtenerHistorial();
-
-    List<ReservaClienteDTO> obtenerHistorialPorUsuario(Long userId);
-
-    List<ReservaClienteDTO> obtenerHistorialPorEmail(String email);
-
-    ReservaClienteDTO obtenerDetalleReserva(Long id);
-
-    ReservaClienteDTO obtenerDetalleReservaAdmin(Long id);
-
-    ReservaClienteDTO editarReserva(ReservaClienteDTO reservaClienteDTO);
-
-    ReservaClienteDTO editarReservaAdmin(ReservaClienteDTO reservaClienteDTO);
-
-    void eliminarReserva(Long id);
-
-    boolean esReservaDelUsuario(Long reservaId);
+    // Admin
+    ReservaDTO crearReservaAdmin(ReservaDTO dto);
+    List<ReservaDTO> obtenerTodasReservas();
+    List<ReservaDTO> obtenerReservasPorPaciente(Long pacienteId);
+    ReservaDTO obtenerReservaAdmin(Long id);
+    ReservaDTO editarReservaAdmin(Long id, ReservaDTO dto);
+    void cancelarReservaAdmin(Long id);
+    ReservaDTO completarReserva(Long id);
 }

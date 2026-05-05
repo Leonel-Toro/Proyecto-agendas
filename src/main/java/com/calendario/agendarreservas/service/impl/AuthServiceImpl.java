@@ -3,6 +3,7 @@ package com.calendario.agendarreservas.service.impl;
 import com.calendario.agendarreservas.dto.AuthResponse;
 import com.calendario.agendarreservas.dto.LoginRequest;
 import com.calendario.agendarreservas.dto.RegisterRequest;
+import com.calendario.agendarreservas.model.Genero;
 import com.calendario.agendarreservas.model.RefreshToken;
 import com.calendario.agendarreservas.model.Role;
 import com.calendario.agendarreservas.model.User;
@@ -103,6 +104,10 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.existsByEmail(request.getEmail())) {
             return AuthResponse.error("El email ya está registrado");
         }
+        if (request.getRut() != null && !request.getRut().isBlank()
+                && userRepository.existsByRut(request.getRut())) {
+            return AuthResponse.error("El RUT ya está registrado");
+        }
 
         User user = new User();
         user.setUsername(request.getUsername());
@@ -111,6 +116,17 @@ public class AuthServiceImpl implements AuthService {
         user.setRoles(Set.of(Role.ROLE_USER));
         user.setEnabled(true);
         user.setAccountNonLocked(true);
+        user.setNombre(request.getNombre());
+        user.setApellidos(request.getApellidos());
+        user.setRut(request.getRut());
+        user.setTelefono(request.getTelefono());
+        user.setFechaNacimiento(request.getFechaNacimiento());
+        user.setEdad(request.getEdad());
+        if (request.getGenero() != null && !request.getGenero().isBlank()) {
+            user.setGenero(Genero.valueOf(request.getGenero().toUpperCase()));
+        }
+        user.setPacienteAnterior(request.getPacienteAnterior());
+        user.setEstudiante(request.getEstudiante());
         userRepository.save(user);
 
         logger.info("Nuevo usuario registrado: {}", user.getUsername());

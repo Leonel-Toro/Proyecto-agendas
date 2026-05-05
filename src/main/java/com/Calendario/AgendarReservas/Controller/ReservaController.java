@@ -1,8 +1,9 @@
 package com.calendario.agendarreservas.controller;
 
-import com.calendario.agendarreservas.dto.ReservaClienteDTO;
+import com.calendario.agendarreservas.dto.ReservaDTO;
 import com.calendario.agendarreservas.model.ResponseApi;
 import com.calendario.agendarreservas.service.ReservaService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,71 +13,93 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/reservas")
 @RequiredArgsConstructor
 public class ReservaController {
 
     private final ReservaService reservaService;
 
-    @PostMapping("/agendar")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<ReservaClienteDTO>> agendarCliente(@RequestBody ReservaClienteDTO reservar) {
-        ReservaClienteDTO resultado = reservaService.agendarCliente(reservar);
+    // ===================== Paciente =====================
+
+    @PostMapping("/api/reservas")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ResponseApi<ReservaDTO>> crearReserva(@Valid @RequestBody ReservaDTO dto) {
+        ReservaDTO result = reservaService.crearReserva(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResponseApi<>(201, "Reserva creada exitosamente", resultado));
+                .body(new ResponseApi<>(201, "Reserva creada exitosamente", result));
     }
 
-    @GetMapping("/historial/detalle/{id}")
-    public ResponseEntity<ResponseApi<ReservaClienteDTO>> obtenerDetalleReserva(@PathVariable Long id) {
-        ReservaClienteDTO detalle = reservaService.obtenerDetalleReserva(id);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Detalle de reserva obtenido", detalle));
+    @GetMapping("/api/reservas")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ResponseApi<List<ReservaDTO>>> obtenerMisReservas() {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reservas obtenidas", reservaService.obtenerMisReservas()));
     }
 
-    @GetMapping("/historial")
+    @GetMapping("/api/reservas/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ResponseApi<ReservaDTO>> obtenerMiReserva(@PathVariable Long id) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva obtenida", reservaService.obtenerMiReserva(id)));
+    }
+
+    @PatchMapping("/api/reservas/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ResponseApi<ReservaDTO>> editarReserva(
+            @PathVariable Long id, @RequestBody ReservaDTO dto) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva actualizada", reservaService.editarReserva(id, dto)));
+    }
+
+    @DeleteMapping("/api/reservas/{id}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ResponseApi<Void>> cancelarReserva(@PathVariable Long id) {
+        reservaService.cancelarReserva(id);
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva cancelada", null));
+    }
+
+    // ===================== Admin =====================
+
+    @PostMapping("/api/admin/reservas")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<List<ReservaClienteDTO>>> obtenerHistorial() {
-        List<ReservaClienteDTO> historial = reservaService.obtenerHistorial();
-        return ResponseEntity.ok(new ResponseApi<>(200, "Historial obtenido", historial));
+    public ResponseEntity<ResponseApi<ReservaDTO>> crearReservaAdmin(@Valid @RequestBody ReservaDTO dto) {
+        ReservaDTO result = reservaService.crearReservaAdmin(dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ResponseApi<>(201, "Reserva creada exitosamente", result));
     }
 
-    @PutMapping("/editar")
+    @GetMapping("/api/admin/reservas")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<ReservaClienteDTO>> editarReserva(@RequestBody ReservaClienteDTO reservaClienteDTO) {
-        ReservaClienteDTO resultado = reservaService.editarReserva(reservaClienteDTO);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva editada exitosamente", resultado));
+    public ResponseEntity<ResponseApi<List<ReservaDTO>>> obtenerTodasReservas() {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reservas obtenidas", reservaService.obtenerTodasReservas()));
     }
 
-    @DeleteMapping("/eliminar/{id}")
-    public ResponseEntity<ResponseApi<Void>> eliminarReserva(@PathVariable Long id) {
-        reservaService.eliminarReserva(id);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva eliminada exitosamente", null));
-    }
-
-    @GetMapping("/admin/historial/usuario/{userId}")
+    @GetMapping("/api/admin/reservas/paciente/{pacienteId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<List<ReservaClienteDTO>>> obtenerHistorialPorUsuario(@PathVariable Long userId) {
-        List<ReservaClienteDTO> historial = reservaService.obtenerHistorialPorUsuario(userId);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Historial del usuario obtenido", historial));
+    public ResponseEntity<ResponseApi<List<ReservaDTO>>> obtenerReservasPorPaciente(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reservas del paciente obtenidas",
+                reservaService.obtenerReservasPorPaciente(pacienteId)));
     }
 
-    @GetMapping("/admin/historial/email/{email}")
+    @GetMapping("/api/admin/reservas/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<List<ReservaClienteDTO>>> obtenerHistorialPorEmail(@PathVariable String email) {
-        List<ReservaClienteDTO> historial = reservaService.obtenerHistorialPorEmail(email);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Historial del usuario obtenido", historial));
+    public ResponseEntity<ResponseApi<ReservaDTO>> obtenerReservaAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva obtenida", reservaService.obtenerReservaAdmin(id)));
     }
 
-    @GetMapping("/admin/detalle/{id}")
+    @PutMapping("/api/admin/reservas/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<ReservaClienteDTO>> obtenerDetalleReservaAdmin(@PathVariable Long id) {
-        ReservaClienteDTO detalle = reservaService.obtenerDetalleReservaAdmin(id);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Detalle de reserva obtenido", detalle));
+    public ResponseEntity<ResponseApi<ReservaDTO>> editarReservaAdmin(
+            @PathVariable Long id, @RequestBody ReservaDTO dto) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva actualizada", reservaService.editarReservaAdmin(id, dto)));
     }
 
-    @PutMapping("/admin/editar")
+    @DeleteMapping("/api/admin/reservas/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<ReservaClienteDTO>> editarReservaAdmin(@RequestBody ReservaClienteDTO reservaClienteDTO) {
-        ReservaClienteDTO resultado = reservaService.editarReservaAdmin(reservaClienteDTO);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva editada exitosamente", resultado));
+    public ResponseEntity<ResponseApi<Void>> cancelarReservaAdmin(@PathVariable Long id) {
+        reservaService.cancelarReservaAdmin(id);
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva cancelada", null));
+    }
+
+    @PatchMapping("/api/admin/reservas/{id}/completar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseApi<ReservaDTO>> completarReserva(@PathVariable Long id) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Reserva completada", reservaService.completarReserva(id)));
     }
 }

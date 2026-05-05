@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -19,7 +20,8 @@ import java.util.Set;
 @Table(name = "users",
        uniqueConstraints = {
            @UniqueConstraint(columnNames = "username"),
-           @UniqueConstraint(columnNames = "email")
+           @UniqueConstraint(columnNames = "email"),
+           @UniqueConstraint(columnNames = "rut")
        })
 public class User {
 
@@ -54,6 +56,36 @@ public class User {
 
     @Column(nullable = false)
     private boolean accountNonLocked = true;
+
+    // Campos de perfil de paciente (nulos para admin)
+
+    @Column(name = "nombre", length = 100)
+    private String nombre;
+
+    @Column(name = "apellidos", length = 150)
+    private String apellidos;
+
+    @Column(name = "telefono", length = 20)
+    private String telefono;
+
+    @Column(name = "fecha_nacimiento")
+    private LocalDate fechaNacimiento;
+
+    @Column(name = "edad")
+    private Integer edad;
+
+    @Column(name = "rut", unique = true, length = 12)
+    private String rut;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "genero", length = 25)
+    private Genero genero;
+
+    @Column(name = "paciente_anterior")
+    private Boolean pacienteAnterior;
+
+    @Column(name = "estudiante")
+    private Boolean estudiante;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

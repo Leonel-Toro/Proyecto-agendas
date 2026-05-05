@@ -1,30 +1,37 @@
 package com.calendario.agendarreservas.mapper;
 
-import com.calendario.agendarreservas.dto.ReservaClienteDTO;
-import com.calendario.agendarreservas.model.Cliente;
+import com.calendario.agendarreservas.dto.ReservaDTO;
 import com.calendario.agendarreservas.model.Reserva;
+import com.calendario.agendarreservas.model.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ReservaMapper {
 
-    public ReservaClienteDTO toDTO(Reserva reserva) {
-        ReservaClienteDTO dto = new ReservaClienteDTO();
-        dto.setId(reserva.getIdReserva());
-        dto.setNombreProducto(reserva.getNombreProducto());
-        dto.setMensajePersonalizado(reserva.getMensajePersonalizado());
-        dto.setFechaTermino(reserva.getFechaTermino());
-        dto.setPrecio(reserva.getPrecio());
-        dto.setEstado(reserva.getEstado().name());
-        dto.setFechaReserva(reserva.getFechaReserva());
-        dto.setLugarEncuentro(reserva.getLugarEncuentro());
-        dto.setAbonado(reserva.getAbonado());
-
-        Cliente cliente = reserva.getCliente();
-        if (cliente != null) {
-            dto.setNombreCliente(cliente.getNombre());
-            dto.setMedioCliente(cliente.getMedio() != null ? cliente.getMedio().name() : null);
-        }
+    public ReservaDTO toDTO(Reserva r) {
+        ReservaDTO dto = new ReservaDTO();
+        dto.setId(r.getIdReserva());
+        dto.setPacienteId(r.getPaciente().getId());
+        dto.setPacienteNombre(fullName(r.getPaciente()));
+        dto.setPacienteRut(r.getPaciente().getRut());
+        dto.setPsicologoId(r.getPsicologo().getId());
+        dto.setPsicologoNombre(fullName(r.getPsicologo()));
+        dto.setMotivoConsulta(r.getMotivoConsulta());
+        dto.setModalidad(r.getModalidad().name());
+        dto.setDuracionMinutos(r.getDuracionMinutos());
+        dto.setFechaReserva(r.getFechaReserva());
+        dto.setFechaTermino(r.getFechaTermino());
+        dto.setPrecio(r.getPrecio());
+        dto.setAbonado(r.getAbonado());
+        dto.setEstado(r.getEstado().name());
+        dto.setFechaCreacion(r.getFechaCreacion());
+        dto.setFechaModificacion(r.getFechaModificacion());
         return dto;
+    }
+
+    private String fullName(User u) {
+        if (u.getNombre() == null) return u.getUsername();
+        if (u.getApellidos() == null) return u.getNombre();
+        return u.getNombre() + " " + u.getApellidos();
     }
 }

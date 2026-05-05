@@ -5,10 +5,9 @@ import lombok.Getter;
 @Getter
 public enum EstadoReserva {
     PENDIENTE(1, "Pendiente"),
-    ABONADA(2, "Abonada"),
+    CONFIRMADA(2, "Confirmada"),
     CANCELADA(3, "Cancelada"),
-    NO_CONCRETADA(4, "No concretada"),
-    PAGADA(5, "Pagada");
+    COMPLETADA(4, "Completada");
 
     private final int id;
     private final String label;
@@ -18,10 +17,10 @@ public enum EstadoReserva {
         this.label = label;
     }
 
-    public static EstadoReserva findEstado(int idEstado) {
+    public static EstadoReserva findById(int id) {
         for (EstadoReserva e : values()) {
-            if (e.id == idEstado) return e;
+            if (e.id == id) return e;
         }
-        throw new IllegalArgumentException("EstadoReserva id inválido: " + idEstado);
+        throw new IllegalArgumentException("EstadoReserva id inválido: " + id);
     }
 }

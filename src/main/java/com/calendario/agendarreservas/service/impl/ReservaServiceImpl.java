@@ -1,11 +1,10 @@
 package com.calendario.agendarreservas.service.impl;
 
-import com.calendario.agendarreservas.dto.ReservaClienteDTO;
+import com.calendario.agendarreservas.dto.ReservaDTO;
 import com.calendario.agendarreservas.exception.ResourceNotFoundException;
 import com.calendario.agendarreservas.exception.UnauthorizedOperationException;
 import com.calendario.agendarreservas.mapper.ReservaMapper;
 import com.calendario.agendarreservas.model.*;
-import com.calendario.agendarreservas.repository.ClienteRepository;
 import com.calendario.agendarreservas.repository.ReservaRepository;
 import com.calendario.agendarreservas.repository.UserRepository;
 import com.calendario.agendarreservas.service.ReservaService;
@@ -14,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,172 +22,236 @@ import java.util.List;
 public class ReservaServiceImpl implements ReservaService {
 
     private final ReservaRepository reservaRepository;
-    private final ClienteRepository clienteRepository;
     private final UserRepository userRepository;
     private final SecurityContextHelper securityContextHelper;
     private final ReservaMapper reservaMapper;
 
     @Override
     @Transactional
-    public ReservaClienteDTO agendarCliente(ReservaClienteDTO dto) {
-        if (dto == null) throw new IllegalArgumentException("Payload vacío.");
-
-        User currentUser = securityContextHelper.getCurrentUser();
-
-        if (dto.getPrecio() == null || dto.getPrecio() < 0)
-            throw new IllegalArgumentException("El precio debe ser mayor 0.");
-
-        if (dto.getAbonado() == null || dto.getAbonado() < 0)
-            throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
-
-        if (dto.getEstado() == null || dto.getEstado().isBlank())
-            throw new IllegalArgumentException("El estado es obligatorio.");
-
+    public ReservaDTO crearReserva(ReservaDTO dto) {
         if (dto.getFechaReserva() == null)
             throw new IllegalArgumentException("La fecha de reserva es obligatoria.");
-
         if (dto.getFechaReserva().toLocalDateTime().isBefore(LocalDateTime.now()))
-            throw new IllegalArgumentException("La fecha de inicio debe ser futura.");
+            throw new IllegalArgumentException("La fecha de reserva debe ser futura.");
+        if (dto.getPsicologoId() == null)
+            throw new IllegalArgumentException("Debe seleccionar un psicólogo.");
+        if (dto.getPrecio() == null || dto.getPrecio() < 0)
+            throw new IllegalArgumentException("El precio debe ser mayor o igual a 0.");
+        validarDuracion(dto.getDuracionMinutos());
+        validarModalidad(dto.getModalidad());
 
-        if (dto.getNombreCliente() == null || dto.getNombreCliente().isBlank())
-            throw new IllegalArgumentException("El nombre del cliente es obligatorio.");
+        User paciente = securityContextHelper.getCurrentUser();
+        User psicologo = userRepository.findById(dto.getPsicologoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", dto.getPsicologoId()));
 
-        if (dto.getMedioCliente() == null || dto.getMedioCliente().isBlank())
-            throw new IllegalArgumentException("Debe seleccionar el medio por el cual fue contactado.");
+        Reserva r = buildReserva(dto, paciente, psicologo);
+        r.setEstado(EstadoReserva.PENDIENTE);
+        reservaRepository.save(r);
+        return reservaMapper.toDTO(r);
+    }
 
-        if (dto.getNombreProducto() == null || dto.getNombreProducto().isBlank())
-            throw new IllegalArgumentException("El nombre del producto no debe ser vacío.");
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaDTO> obtenerMisReservas() {
+        Long userId = securityContextHelper.getCurrentUserId();
+        return reservaRepository.findByPacienteIdOrderByFechaReservaDesc(userId)
+                .stream().map(reservaMapper::toDTO).toList();
+    }
 
-        Cliente cliente = new Cliente();
-        cliente.setNombre(dto.getNombreCliente().trim());
-        cliente.setMedio(MedioContacto.findById(Integer.parseInt(dto.getMedioCliente())));
-        clienteRepository.save(cliente);
+    @Override
+    @Transactional(readOnly = true)
+    public ReservaDTO obtenerMiReserva(Long id) {
+        Long userId = securityContextHelper.getCurrentUserId();
+        return reservaMapper.toDTO(
+                reservaRepository.findByIdReservaAndPacienteId(id, userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Reserva", id)));
+    }
 
+    @Override
+    @Transactional
+    public ReservaDTO editarReserva(Long id, ReservaDTO dto) {
+        Long userId = securityContextHelper.getCurrentUserId();
+        Reserva r = reservaRepository.findByIdReservaAndPacienteId(id, userId)
+                .orElseThrow(() -> new UnauthorizedOperationException(
+                        "Reserva no encontrada o sin permisos para editarla."));
+
+        validarEstadoEditable(r);
+        validarAntelacion24h(r.getFechaReserva());
+        applyPatientUpdates(r, dto);
+        reservaRepository.save(r);
+        return reservaMapper.toDTO(r);
+    }
+
+    @Override
+    @Transactional
+    public void cancelarReserva(Long id) {
+        Long userId = securityContextHelper.getCurrentUserId();
+        Reserva r = reservaRepository.findByIdReservaAndPacienteId(id, userId)
+                .orElseThrow(() -> new UnauthorizedOperationException(
+                        "Reserva no encontrada o sin permisos para cancelarla."));
+
+        validarEstadoCancelable(r);
+        validarAntelacion24h(r.getFechaReserva());
+        r.setEstado(EstadoReserva.CANCELADA);
+        reservaRepository.save(r);
+    }
+
+    @Override
+    @Transactional
+    public ReservaDTO crearReservaAdmin(ReservaDTO dto) {
+        if (dto.getPacienteId() == null)
+            throw new IllegalArgumentException("El ID del paciente es obligatorio.");
+        if (dto.getPsicologoId() == null)
+            throw new IllegalArgumentException("El ID del psicólogo es obligatorio.");
+        validarDuracion(dto.getDuracionMinutos());
+        validarModalidad(dto.getModalidad());
+
+        User paciente = userRepository.findById(dto.getPacienteId())
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente", dto.getPacienteId()));
+        User psicologo = userRepository.findById(dto.getPsicologoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", dto.getPsicologoId()));
+
+        Reserva r = buildReserva(dto, paciente, psicologo);
+        r.setEstado(dto.getEstado() != null && !dto.getEstado().isBlank()
+                ? EstadoReserva.valueOf(dto.getEstado().toUpperCase())
+                : EstadoReserva.PENDIENTE);
+        reservaRepository.save(r);
+        return reservaMapper.toDTO(r);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaDTO> obtenerTodasReservas() {
+        return reservaRepository.findAll().stream().map(reservaMapper::toDTO).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaDTO> obtenerReservasPorPaciente(Long pacienteId) {
+        userRepository.findById(pacienteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente", pacienteId));
+        return reservaRepository.findByPacienteIdOrderByFechaReservaDesc(pacienteId)
+                .stream().map(reservaMapper::toDTO).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReservaDTO obtenerReservaAdmin(Long id) {
+        return reservaMapper.toDTO(
+                reservaRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Reserva", id)));
+    }
+
+    @Override
+    @Transactional
+    public ReservaDTO editarReservaAdmin(Long id, ReservaDTO dto) {
+        Reserva r = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        applyAdminUpdates(r, dto);
+        reservaRepository.save(r);
+        return reservaMapper.toDTO(r);
+    }
+
+    @Override
+    @Transactional
+    public void cancelarReservaAdmin(Long id) {
+        Reserva r = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        validarEstadoCancelable(r);
+        r.setEstado(EstadoReserva.CANCELADA);
+        reservaRepository.save(r);
+    }
+
+    @Override
+    @Transactional
+    public ReservaDTO completarReserva(Long id) {
+        Reserva r = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        if (r.getEstado() == EstadoReserva.CANCELADA)
+            throw new IllegalArgumentException("No se puede completar una reserva cancelada.");
+        r.setEstado(EstadoReserva.COMPLETADA);
+        reservaRepository.save(r);
+        return reservaMapper.toDTO(r);
+    }
+
+    // ---- helpers ----
+
+    private Reserva buildReserva(ReservaDTO dto, User paciente, User psicologo) {
         Reserva r = new Reserva();
+        r.setPaciente(paciente);
+        r.setPsicologo(psicologo);
+        r.setMotivoConsulta(dto.getMotivoConsulta());
+        r.setModalidad(Modalidad.valueOf(dto.getModalidad().toUpperCase()));
+        r.setDuracionMinutos(dto.getDuracionMinutos() != null ? dto.getDuracionMinutos() : 60);
         r.setFechaReserva(dto.getFechaReserva());
-        r.setPrecio(dto.getPrecio());
-        r.setEstado(EstadoReserva.findEstado(Integer.parseInt(dto.getEstado())));
-        r.setLugarEncuentro(dto.getLugarEncuentro());
-        r.setNombreProducto(dto.getNombreProducto());
-        r.setMensajePersonalizado(dto.getMensajePersonalizado());
-        r.setAbonado(dto.getAbonado());
-        r.setUser(currentUser);
-        r.setCliente(cliente);
-        reservaRepository.save(r);
-
-        dto.setId(r.getIdReserva());
-        return dto;
+        r.setFechaTermino(dto.getFechaTermino());
+        r.setPrecio(dto.getPrecio() != null ? dto.getPrecio() : 0L);
+        r.setAbonado(dto.getAbonado() != null ? dto.getAbonado() : 0L);
+        return r;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<ReservaClienteDTO> obtenerHistorial() {
-        Long userId = securityContextHelper.getCurrentUserId();
-        return reservaRepository.findByUserIdOrderByFechaReservaDesc(userId)
-                .stream().map(reservaMapper::toDTO).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ReservaClienteDTO> obtenerHistorialPorUsuario(Long userId) {
-        userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario", userId));
-        return reservaRepository.findByUserIdOrderByFechaReservaDesc(userId)
-                .stream().map(reservaMapper::toDTO).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ReservaClienteDTO> obtenerHistorialPorEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario con email " + email + " no encontrado"));
-        return reservaRepository.findByUserIdOrderByFechaReservaDesc(user.getId())
-                .stream().map(reservaMapper::toDTO).toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ReservaClienteDTO obtenerDetalleReserva(Long id) {
-        Long userId = securityContextHelper.getCurrentUserId();
-        Reserva reserva = reservaRepository.findByIdReservaAndUserId(id, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
-        return reservaMapper.toDTO(reserva);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ReservaClienteDTO obtenerDetalleReservaAdmin(Long id) {
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
-        return reservaMapper.toDTO(reserva);
-    }
-
-    @Override
-    @Transactional
-    public ReservaClienteDTO editarReserva(ReservaClienteDTO dto) {
-        if (dto == null) throw new IllegalArgumentException("Payload vacío.");
-
-        Long userId = securityContextHelper.getCurrentUserId();
-        Reserva r = reservaRepository.findByIdReservaAndUserId(dto.getId(), userId)
-                .orElseThrow(() -> new UnauthorizedOperationException(
-                        "No se encontró la reserva o no tiene permisos para editarla."));
-
-        applyUpdates(r, dto);
-        reservaRepository.save(r);
-        return reservaMapper.toDTO(r);
-    }
-
-    @Override
-    @Transactional
-    public ReservaClienteDTO editarReservaAdmin(ReservaClienteDTO dto) {
-        if (dto == null) throw new IllegalArgumentException("Payload vacío.");
-
-        Reserva r = reservaRepository.findById(dto.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Reserva", dto.getId()));
-
-        applyUpdates(r, dto);
-        reservaRepository.save(r);
-        return reservaMapper.toDTO(r);
-    }
-
-    @Override
-    @Transactional
-    public void eliminarReserva(Long id) {
-        Long userId = securityContextHelper.getCurrentUserId();
-        Reserva reserva = reservaRepository.findByIdReservaAndUserId(id, userId)
-                .orElseThrow(() -> new UnauthorizedOperationException(
-                        "No se encontró la reserva o no tiene permisos para eliminarla."));
-        reservaRepository.delete(reserva);
-    }
-
-    @Override
-    public boolean esReservaDelUsuario(Long reservaId) {
-        Long userId = securityContextHelper.getCurrentUserId();
-        return reservaRepository.findByIdReservaAndUserId(reservaId, userId).isPresent();
-    }
-
-    private void applyUpdates(Reserva r, ReservaClienteDTO dto) {
-        if (dto.getAbonado() != null && dto.getAbonado() < 0)
-            throw new IllegalArgumentException("El monto abonado debe ser mayor a 0.");
-
-        if (dto.getAbonado() != null && dto.getPrecio() != null && dto.getAbonado() > dto.getPrecio())
-            throw new IllegalArgumentException("El monto abonado no puede ser mayor al precio total.");
-
-        if (dto.getPrecio() != null && dto.getPrecio() >= 0) r.setPrecio(dto.getPrecio());
-        if (dto.getAbonado() != null && dto.getAbonado() >= 0) r.setAbonado(dto.getAbonado());
-
-        if (dto.getEstado() != null && !dto.getEstado().isBlank())
-            r.setEstado(EstadoReserva.findEstado(Integer.parseInt(dto.getEstado())));
-
-        if (dto.getFechaTermino() != null) {
-            if (dto.getFechaTermino().toLocalDateTime().isBefore(r.getFechaReserva().toLocalDateTime()))
-                throw new IllegalArgumentException("La fecha de término debe ser mayor a la fecha de reserva.");
-            r.setFechaTermino(dto.getFechaTermino());
+    private void applyPatientUpdates(Reserva r, ReservaDTO dto) {
+        if (dto.getMotivoConsulta() != null) r.setMotivoConsulta(dto.getMotivoConsulta());
+        if (dto.getModalidad() != null) {
+            validarModalidad(dto.getModalidad());
+            r.setModalidad(Modalidad.valueOf(dto.getModalidad().toUpperCase()));
         }
+        if (dto.getDuracionMinutos() != null) {
+            validarDuracion(dto.getDuracionMinutos());
+            r.setDuracionMinutos(dto.getDuracionMinutos());
+        }
+        if (dto.getFechaReserva() != null) {
+            if (dto.getFechaReserva().toLocalDateTime().isBefore(LocalDateTime.now()))
+                throw new IllegalArgumentException("La nueva fecha debe ser futura.");
+            r.setFechaReserva(dto.getFechaReserva());
+        }
+    }
 
-        if (dto.getLugarEncuentro() != null) r.setLugarEncuentro(dto.getLugarEncuentro());
-        if (dto.getNombreProducto() != null && !dto.getNombreProducto().isBlank())
-            r.setNombreProducto(dto.getNombreProducto());
-        if (dto.getMensajePersonalizado() != null) r.setMensajePersonalizado(dto.getMensajePersonalizado());
+    private void applyAdminUpdates(Reserva r, ReservaDTO dto) {
+        applyPatientUpdates(r, dto);
+        if (dto.getPrecio() != null && dto.getPrecio() >= 0) r.setPrecio(dto.getPrecio());
+        if (dto.getAbonado() != null && dto.getAbonado() >= 0) {
+            if (dto.getAbonado() > r.getPrecio())
+                throw new IllegalArgumentException("El monto abonado no puede superar el precio.");
+            r.setAbonado(dto.getAbonado());
+        }
+        if (dto.getEstado() != null && !dto.getEstado().isBlank())
+            r.setEstado(EstadoReserva.valueOf(dto.getEstado().toUpperCase()));
+        if (dto.getFechaTermino() != null) r.setFechaTermino(dto.getFechaTermino());
+    }
+
+    private void validarAntelacion24h(Timestamp fechaReserva) {
+        if (fechaReserva.toLocalDateTime().isBefore(LocalDateTime.now().plusHours(24)))
+            throw new IllegalArgumentException(
+                    "Solo se puede modificar o cancelar con al menos 24 horas de anticipación.");
+    }
+
+    private void validarDuracion(Integer minutos) {
+        int d = minutos != null ? minutos : 60;
+        if (d < 30 || d > 360 || d % 30 != 0)
+            throw new IllegalArgumentException(
+                    "La duración debe ser múltiplo de 30 entre 30 y 360 minutos.");
+    }
+
+    private void validarModalidad(String modalidad) {
+        if (modalidad == null || modalidad.isBlank())
+            throw new IllegalArgumentException("La modalidad es obligatoria (PRESENCIAL o VIRTUAL).");
+        try {
+            Modalidad.valueOf(modalidad.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Modalidad inválida. Use PRESENCIAL o VIRTUAL.");
+        }
+    }
+
+    private void validarEstadoEditable(Reserva r) {
+        if (r.getEstado() != EstadoReserva.PENDIENTE && r.getEstado() != EstadoReserva.CONFIRMADA)
+            throw new IllegalArgumentException(
+                    "No se puede editar una reserva con estado " + r.getEstado().getLabel() + ".");
+    }
+
+    private void validarEstadoCancelable(Reserva r) {
+        if (r.getEstado() == EstadoReserva.CANCELADA || r.getEstado() == EstadoReserva.COMPLETADA)
+            throw new IllegalArgumentException(
+                    "La reserva ya está " + r.getEstado().getLabel() + ".");
     }
 }

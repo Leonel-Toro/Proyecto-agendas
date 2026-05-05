@@ -1,40 +1,30 @@
 package com.calendario.agendarreservas.repository;
 
+import com.calendario.agendarreservas.model.EstadoReserva;
 import com.calendario.agendarreservas.model.Reserva;
-import com.calendario.agendarreservas.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
-    // Buscar todas las reservas de un usuario
-    List<Reserva> findByUser(User user);
+    List<Reserva> findByPacienteIdOrderByFechaReservaDesc(Long pacienteId);
 
-    // Buscar todas las reservas por userId
-    List<Reserva> findByUserId(Long userId);
+    Optional<Reserva> findByIdReservaAndPacienteId(Long idReserva, Long pacienteId);
 
-    // Buscar reserva por id y usuario (para verificar propiedad)
-    Optional<Reserva> findByIdReservaAndUser(Long idReserva, User user);
+    List<Reserva> findByPsicologoIdOrderByFechaReservaDesc(Long psicologoId);
 
-    // Buscar reserva por id y userId
-    Optional<Reserva> findByIdReservaAndUserId(Long idReserva, Long userId);
+    List<Reserva> findByPacienteIdAndEstadoOrderByFechaReservaDesc(Long pacienteId, EstadoReserva estado);
 
-    // Buscar reservas ordenadas por fecha de creación descendente
-    List<Reserva> findByUserOrderByFechaCreacionDesc(User user);
-
-    // Buscar reservas por userId ordenadas por fecha de reserva
-    List<Reserva> findByUserIdOrderByFechaReservaDesc(Long userId);
-
-    // Contar reservas de un usuario
-    long countByUserId(Long userId);
-
-    // Buscar por estado y usuario
-    @Query("SELECT r FROM Reserva r WHERE r.user.id = :userId AND r.estado = :estado")
-    List<Reserva> findByUserIdAndEstado(@Param("userId") Long userId, @Param("estado") String estado);
+    @Query("SELECT r FROM Reserva r WHERE r.paciente.id = :pacienteId AND r.fechaReserva BETWEEN :desde AND :hasta ORDER BY r.fechaReserva DESC")
+    List<Reserva> findByPacienteIdAndRango(
+            @Param("pacienteId") Long pacienteId,
+            @Param("desde") Timestamp desde,
+            @Param("hasta") Timestamp hasta);
 }
