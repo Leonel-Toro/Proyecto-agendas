@@ -44,10 +44,10 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
 
-    @Value("${app.jwt.access-token-expiration-ms}")
+    @Value("${app.jwt.access-token-expiration-ms:1800000}")
     private long accessTokenExpirationMs;
 
-    @Value("${app.jwt.refresh-token-expiration-ms}")
+    @Value("${app.jwt.refresh-token-expiration-ms:604800000}")
     private long refreshTokenExpirationMs;
 
     @Value("${app.cookie.secure:true}")
@@ -56,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
     @Value("${app.cookie.same-site:None}")
     private String sameSite;
 
-    @Value("${app.cookie.domain:}")
+    @Value("${app.cookie.domain}")
     private String cookieDomain;
 
     @Override
