@@ -5,10 +5,7 @@ import com.calendario.agendarreservas.dto.NotasSesionDTO;
 import com.calendario.agendarreservas.exception.ResourceNotFoundException;
 import com.calendario.agendarreservas.exception.UnauthorizedOperationException;
 import com.calendario.agendarreservas.mapper.HistorialPacienteMapper;
-import com.calendario.agendarreservas.model.HistorialPaciente;
-import com.calendario.agendarreservas.model.NotasSesion;
-import com.calendario.agendarreservas.model.Reserva;
-import com.calendario.agendarreservas.model.TipoSesion;
+import com.calendario.agendarreservas.model.*;
 import com.calendario.agendarreservas.repository.HistorialPacienteRepository;
 import com.calendario.agendarreservas.repository.NotasSesionRepository;
 import com.calendario.agendarreservas.repository.ReservaRepository;
@@ -47,11 +44,10 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
         h.setPaciente(reserva.getPaciente());
         h.setPsicologo(reserva.getPsicologo());
         h.setMotivoConsulta(dto.getMotivoConsulta() != null ? dto.getMotivoConsulta() : reserva.getMotivoConsulta());
-        if (dto.getTipoSesion() != null) h.setTipoSesion(TipoSesion.valueOf(dto.getTipoSesion()));
-        h.setCrisis(Boolean.TRUE.equals(dto.getCrisis()));
-        h.setAlta(Boolean.TRUE.equals(dto.getAlta()));
-        h.setPosibleAbandono(Boolean.TRUE.equals(dto.getPosibleAbandono()));
-        h.setNotasGenerales(dto.getNotasGenerales());
+        h.setTipoSesion(dto.getTipoSesion() != null ? TipoSesion.valueOf(dto.getTipoSesion()) : null);
+        h.setCrisis(dto.getCrisis() != null ? dto.getCrisis() : Boolean.FALSE);
+        h.setAlta(dto.getAlta() != null ? dto.getAlta() : Boolean.FALSE);
+        h.setPosibleAbandono(dto.getPosibleAbandono() != null ? dto.getPosibleAbandono() : Boolean.FALSE);
 
         historialPacienteRepository.save(h);
         return historialPacienteMapper.toDTO(h);
@@ -78,7 +74,7 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
     @Transactional(readOnly = true)
     public HistorialPacienteDTO obtenerHistorialAdmin(Long id) {
         return historialPacienteMapper.toDTO(
-                historialPacienteRepository.findById(id)
+                historialPacienteRepository.findByIdHistorialAndReservaEstado(id, EstadoReserva.COMPLETADA)
                         .orElseThrow(() -> new ResourceNotFoundException("Historial", id)));
     }
 

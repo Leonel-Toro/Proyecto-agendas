@@ -80,20 +80,4 @@ public class HistorialPacienteController {
         return ResponseEntity.ok(new ResponseApi<>(200, "Historial por rango obtenido",
                 historialPacienteService.obtenerHistorialPorPacienteYRango(pacienteId, desde, hasta)));
     }
-
-    @PostMapping("/api/admin/historial/{id}/notas")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<NotasSesionDTO>> agregarNota(
-            @PathVariable Long id, @Valid @RequestBody NotasSesionDTO dto) {
-        NotasSesionDTO result = historialPacienteService.agregarNota(id, dto);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResponseApi<>(201, "Nota agregada exitosamente", result));
-    }
-
-    @DeleteMapping("/api/admin/historial/notas/{idNota}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ResponseApi<Void>> eliminarNota(@PathVariable Long idNota) {
-        historialPacienteService.eliminarNota(idNota);
-        return ResponseEntity.ok(new ResponseApi<>(200, "Nota eliminada", null));
-    }
 }

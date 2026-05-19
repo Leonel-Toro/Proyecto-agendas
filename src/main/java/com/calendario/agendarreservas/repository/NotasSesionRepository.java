@@ -10,4 +10,6 @@ import java.util.List;
 public interface NotasSesionRepository extends JpaRepository<NotasSesion, Long> {
 
     List<NotasSesion> findByHistorialPacienteIdHistorialOrderByFechaCreacionAsc(Long idHistorial);
+
+    List<NotasSesion> findByHistorialPacienteReservaIdReservaOrderByFechaCreacionAsc(Long idReserva);
 }

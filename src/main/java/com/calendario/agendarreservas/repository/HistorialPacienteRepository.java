@@ -1,5 +1,6 @@
 package com.calendario.agendarreservas.repository;
 
+import com.calendario.agendarreservas.model.EstadoReserva;
 import com.calendario.agendarreservas.model.HistorialPaciente;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +17,8 @@ public interface HistorialPacienteRepository extends JpaRepository<HistorialPaci
     List<HistorialPaciente> findByPacienteIdOrderByFechaCreacionDesc(Long pacienteId);
 
     Optional<HistorialPaciente> findByReservaIdReserva(Long idReserva);
+
+    Optional<HistorialPaciente> findByIdHistorialAndReservaEstado(Long idHistorial, EstadoReserva estado);
 
     boolean existsByReservaIdReserva(Long idReserva);
 

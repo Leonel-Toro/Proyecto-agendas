@@ -15,7 +15,7 @@ import java.time.Instant;
 public class NotasSesionDTO {
 
     private Long idNota;
-    private Long idHistorial;
+    private Long idReserva;
 
     @NotBlank(message = "La nota no puede estar vacía")
     private String nota;
