@@ -80,7 +80,8 @@ public class SecurityConfig {
                             "/api/auth/logout",
                             "/api/auth/csrf",
                             "/api/reservas/**",
-                            "/api/admin/**"
+                            "/api/admin/**",
+                            "/api/agent/**"
                         );
                 } else {
                     csrf.disable();
