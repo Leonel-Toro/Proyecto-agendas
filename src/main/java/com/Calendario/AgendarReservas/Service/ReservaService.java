@@ -1,7 +1,9 @@
 package com.calendario.agendarreservas.service;
 
+import com.calendario.agendarreservas.dto.DisponibilidadDTO;
 import com.calendario.agendarreservas.dto.ReservaDTO;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ReservaService {
@@ -12,6 +14,7 @@ public interface ReservaService {
     ReservaDTO obtenerMiReserva(Long id);
     ReservaDTO editarReserva(Long id, ReservaDTO dto);
     void cancelarReserva(Long id);
+    List<DisponibilidadDTO> obtenerHorariosOcupados(Long psicologoId, LocalDate fecha, Long excludeReservaId);
 
     // Admin
     ReservaDTO crearReservaAdmin(ReservaDTO dto);

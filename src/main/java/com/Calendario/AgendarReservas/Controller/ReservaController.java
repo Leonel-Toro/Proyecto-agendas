@@ -1,15 +1,18 @@
 package com.calendario.agendarreservas.controller;
 
+import com.calendario.agendarreservas.dto.DisponibilidadDTO;
 import com.calendario.agendarreservas.dto.ReservaDTO;
 import com.calendario.agendarreservas.model.ResponseApi;
 import com.calendario.agendarreservas.service.ReservaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -52,6 +55,16 @@ public class ReservaController {
     public ResponseEntity<ResponseApi<Void>> cancelarReserva(@PathVariable Long id) {
         reservaService.cancelarReserva(id);
         return ResponseEntity.ok(new ResponseApi<>(200, "Reserva cancelada", null));
+    }
+
+    @GetMapping("/api/reservas/disponibilidad")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<ResponseApi<List<DisponibilidadDTO>>> obtenerDisponibilidad(
+            @RequestParam Long psicologoId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(required = false) Long excludeReservaId) {
+        return ResponseEntity.ok(new ResponseApi<>(200, "Horarios ocupados obtenidos",
+                reservaService.obtenerHorariosOcupados(psicologoId, fecha, excludeReservaId)));
     }
 
     // ===================== Admin =====================

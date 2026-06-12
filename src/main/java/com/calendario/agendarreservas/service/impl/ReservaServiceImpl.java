@@ -1,6 +1,8 @@
 package com.calendario.agendarreservas.service.impl;
 
+import com.calendario.agendarreservas.dto.DisponibilidadDTO;
 import com.calendario.agendarreservas.dto.ReservaDTO;
+import com.calendario.agendarreservas.exception.ConflictException;
 import com.calendario.agendarreservas.exception.ResourceNotFoundException;
 import com.calendario.agendarreservas.exception.UnauthorizedOperationException;
 import com.calendario.agendarreservas.mapper.ReservaMapper;
@@ -14,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -45,6 +49,8 @@ public class ReservaServiceImpl implements ReservaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", dto.getPsicologoId()));
 
         Reserva r = buildReserva(dto, paciente, psicologo);
+        validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
+        validarDisponibilidad(psicologo, paciente, r.getFechaReserva(), r.getFechaTermino(), null);
         r.setEstado(EstadoReserva.PENDIENTE);
         reservaRepository.save(r);
         return reservaMapper.toDTO(r);
@@ -78,6 +84,8 @@ public class ReservaServiceImpl implements ReservaService {
         validarEstadoEditable(r);
         validarAntelacion24h(r.getFechaReserva());
         applyPatientUpdates(r, dto);
+        validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
+        validarDisponibilidad(r.getPsicologo(), r.getPaciente(), r.getFechaReserva(), r.getFechaTermino(), r.getIdReserva());
         reservaRepository.save(r);
         return reservaMapper.toDTO(r);
     }
@@ -112,6 +120,8 @@ public class ReservaServiceImpl implements ReservaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", dto.getPsicologoId()));
 
         Reserva r = buildReserva(dto, paciente, psicologo);
+        validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
+        validarDisponibilidad(psicologo, paciente, r.getFechaReserva(), r.getFechaTermino(), null);
         r.setEstado(dto.getEstado() != null && !dto.getEstado().isBlank()
                 ? EstadoReserva.valueOf(dto.getEstado().toUpperCase())
                 : EstadoReserva.PENDIENTE);
@@ -148,6 +158,8 @@ public class ReservaServiceImpl implements ReservaService {
         Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
         applyAdminUpdates(r, dto);
+        validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
+        validarDisponibilidad(r.getPsicologo(), r.getPaciente(), r.getFechaReserva(), r.getFechaTermino(), r.getIdReserva());
         reservaRepository.save(r);
         return reservaMapper.toDTO(r);
     }
@@ -174,7 +186,42 @@ public class ReservaServiceImpl implements ReservaService {
         return reservaMapper.toDTO(r);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DisponibilidadDTO> obtenerHorariosOcupados(Long psicologoId, LocalDate fecha, Long excludeReservaId) {
+        userRepository.findById(psicologoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", psicologoId));
+        Timestamp desde = Timestamp.valueOf(fecha.atStartOfDay());
+        Timestamp hasta = Timestamp.valueOf(fecha.atTime(LocalTime.MAX));
+        return reservaRepository.findOcupadosPsicologo(psicologoId, desde, hasta, excludeReservaId).stream()
+                .map(r -> new DisponibilidadDTO(r.getFechaReserva(), r.getFechaTermino()))
+                .toList();
+    }
+
     // ---- helpers ----
+
+    private static final LocalTime HORA_APERTURA = LocalTime.of(8, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(23, 59, 59);
+
+    private Timestamp calcularFechaTermino(Timestamp fechaReserva, Integer duracionMinutos) {
+        return Timestamp.valueOf(fechaReserva.toLocalDateTime().plusMinutes(duracionMinutos));
+    }
+
+    private void validarHorarioLaboral(Timestamp inicio, Timestamp fin) {
+        LocalDateTime ini = inicio.toLocalDateTime();
+        LocalDateTime fim = fin.toLocalDateTime();
+        if (!ini.toLocalDate().equals(fim.toLocalDate()))
+            throw new IllegalArgumentException("La reserva no puede extenderse más allá de la medianoche.");
+        if (ini.toLocalTime().isBefore(HORA_APERTURA) || fim.toLocalTime().isAfter(HORA_CIERRE))
+            throw new IllegalArgumentException("El horario debe estar entre las 08:00 y las 23:59.");
+    }
+
+    private void validarDisponibilidad(User psicologo, User paciente, Timestamp inicio, Timestamp fin, Long excludeReservaId) {
+        if (!reservaRepository.findSolapamientosPsicologo(psicologo.getId(), inicio, fin, excludeReservaId).isEmpty())
+            throw new ConflictException("El psicólogo ya tiene una reserva en ese horario.");
+        if (!reservaRepository.findSolapamientosPaciente(paciente.getId(), inicio, fin, excludeReservaId).isEmpty())
+            throw new ConflictException("Ya tienes una reserva en ese horario.");
+    }
 
     private Reserva buildReserva(ReservaDTO dto, User paciente, User psicologo) {
         Reserva r = new Reserva();
@@ -184,7 +231,7 @@ public class ReservaServiceImpl implements ReservaService {
         r.setModalidad(Modalidad.valueOf(dto.getModalidad().toUpperCase()));
         r.setDuracionMinutos(dto.getDuracionMinutos() != null ? dto.getDuracionMinutos() : 60);
         r.setFechaReserva(dto.getFechaReserva());
-        r.setFechaTermino(dto.getFechaTermino());
+        r.setFechaTermino(calcularFechaTermino(r.getFechaReserva(), r.getDuracionMinutos()));
         r.setPrecio(dto.getPrecio() != null ? dto.getPrecio() : 0L);
         r.setAbonado(dto.getAbonado() != null ? dto.getAbonado() : 0L);
         return r;
@@ -205,6 +252,7 @@ public class ReservaServiceImpl implements ReservaService {
                 throw new IllegalArgumentException("La nueva fecha debe ser futura.");
             r.setFechaReserva(dto.getFechaReserva());
         }
+        r.setFechaTermino(calcularFechaTermino(r.getFechaReserva(), r.getDuracionMinutos()));
     }
 
     private void applyAdminUpdates(Reserva r, ReservaDTO dto) {
@@ -217,7 +265,6 @@ public class ReservaServiceImpl implements ReservaService {
         }
         if (dto.getEstado() != null && !dto.getEstado().isBlank())
             r.setEstado(EstadoReserva.valueOf(dto.getEstado().toUpperCase()));
-        if (dto.getFechaTermino() != null) r.setFechaTermino(dto.getFechaTermino());
     }
 
     private void validarAntelacion24h(Timestamp fechaReserva) {

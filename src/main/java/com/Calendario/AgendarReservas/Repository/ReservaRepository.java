@@ -27,4 +27,35 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("pacienteId") Long pacienteId,
             @Param("desde") Timestamp desde,
             @Param("hasta") Timestamp hasta);
+
+    @Query("SELECT r FROM Reserva r WHERE r.psicologo.id = :psicologoId " +
+            "AND r.estado <> 'CANCELADA' " +
+            "AND (:excludeId IS NULL OR r.idReserva <> :excludeId) " +
+            "AND r.fechaReserva < :fin AND r.fechaTermino > :inicio")
+    List<Reserva> findSolapamientosPsicologo(
+            @Param("psicologoId") Long psicologoId,
+            @Param("inicio") Timestamp inicio,
+            @Param("fin") Timestamp fin,
+            @Param("excludeId") Long excludeId);
+
+    @Query("SELECT r FROM Reserva r WHERE r.paciente.id = :pacienteId " +
+            "AND r.estado <> 'CANCELADA' " +
+            "AND (:excludeId IS NULL OR r.idReserva <> :excludeId) " +
+            "AND r.fechaReserva < :fin AND r.fechaTermino > :inicio")
+    List<Reserva> findSolapamientosPaciente(
+            @Param("pacienteId") Long pacienteId,
+            @Param("inicio") Timestamp inicio,
+            @Param("fin") Timestamp fin,
+            @Param("excludeId") Long excludeId);
+
+    @Query("SELECT r FROM Reserva r WHERE r.psicologo.id = :psicologoId " +
+            "AND r.estado <> 'CANCELADA' " +
+            "AND (:excludeId IS NULL OR r.idReserva <> :excludeId) " +
+            "AND r.fechaReserva < :hasta AND r.fechaTermino > :desde " +
+            "ORDER BY r.fechaReserva")
+    List<Reserva> findOcupadosPsicologo(
+            @Param("psicologoId") Long psicologoId,
+            @Param("desde") Timestamp desde,
+            @Param("hasta") Timestamp hasta,
+            @Param("excludeId") Long excludeId);
 }
