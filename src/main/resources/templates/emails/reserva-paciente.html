@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${estadoLabel}">Estado de tu reserva</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif; color:#333333;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f8; padding:24px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+                    <!-- Encabezado -->
+                    <tr>
+                        <td style="background-color:#2c7be5; padding:24px 32px;">
+                            <h1 style="margin:0; font-size:20px; color:#ffffff;">AgendarReservas</h1>
+                        </td>
+                    </tr>
+                    <!-- Cuerpo -->
+                    <tr>
+                        <td style="padding:32px;">
+                            <p style="margin:0 0 16px; font-size:16px;">
+                                Hola <strong th:text="${pacienteNombre}">Paciente</strong>,
+                            </p>
+
+                            <p style="margin:0 0 16px; font-size:15px; line-height:1.5;" th:if="${esCreacion}">
+                                Hemos registrado tu reserva con el/la profesional
+                                <strong th:text="${psicologoNombre}">Psicólogo</strong>.
+                                Quedará <strong>pendiente de confirmación</strong>.
+                            </p>
+                            <p style="margin:0 0 16px; font-size:15px; line-height:1.5;" th:unless="${esCreacion}">
+                                El estado de tu reserva con el/la profesional
+                                <strong th:text="${psicologoNombre}">Psicólogo</strong>
+                                ha cambiado a <strong th:text="${estadoLabel}">Estado</strong>.
+                            </p>
+
+                            <!-- Detalle -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 24px; border-collapse:collapse;">
+                                <tr>
+                                    <td style="padding:8px 0; font-size:14px; color:#666; width:140px;">Estado</td>
+                                    <td style="padding:8px 0; font-size:14px;"><strong th:text="${estadoLabel}">Pendiente</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:8px 0; font-size:14px; color:#666;">Fecha y hora</td>
+                                    <td style="padding:8px 0; font-size:14px;" th:text="${fecha}">01/01/2026 10:00</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:8px 0; font-size:14px; color:#666;">Modalidad</td>
+                                    <td style="padding:8px 0; font-size:14px;" th:text="${modalidad}">Presencial</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:8px 0; font-size:14px; color:#666;">Motivo</td>
+                                    <td style="padding:8px 0; font-size:14px;" th:text="${motivo}">Motivo de consulta</td>
+                                </tr>
+                            </table>
+
+                            <p style="margin:0; font-size:14px; color:#666; line-height:1.5;">
+                                Si tienes dudas o necesitas reprogramar, responde a este correo o contacta directamente a tu psicólogo/a.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Pie -->
+                    <tr>
+                        <td style="background-color:#f4f6f8; padding:20px 32px; border-top:1px solid #e6e9ed;">
+                            <p style="margin:0; font-size:13px; color:#888;">
+                                Contacto del psicólogo/a:
+                                <strong th:text="${psicologoTelefono}">+56 9 0000 0000</strong>
+                            </p>
+                            <p style="margin:8px 0 0; font-size:12px; color:#aaa;">
+                                Este es un mensaje automático de AgendarReservas. Por favor no compartas este correo.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

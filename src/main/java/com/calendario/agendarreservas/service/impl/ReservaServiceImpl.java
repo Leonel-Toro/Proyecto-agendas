@@ -5,6 +5,7 @@ import com.calendario.agendarreservas.dto.ReservaDTO;
 import com.calendario.agendarreservas.exception.ConflictException;
 import com.calendario.agendarreservas.exception.ResourceNotFoundException;
 import com.calendario.agendarreservas.exception.UnauthorizedOperationException;
+import com.calendario.agendarreservas.event.ReservaEstadoEvent;
 import com.calendario.agendarreservas.mapper.ReservaMapper;
 import com.calendario.agendarreservas.model.*;
 import com.calendario.agendarreservas.repository.ReservaRepository;
@@ -12,6 +13,7 @@ import com.calendario.agendarreservas.repository.UserRepository;
 import com.calendario.agendarreservas.service.ReservaService;
 import com.calendario.agendarreservas.util.SecurityContextHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,7 @@ public class ReservaServiceImpl implements ReservaService {
     private final UserRepository userRepository;
     private final SecurityContextHelper securityContextHelper;
     private final ReservaMapper reservaMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -53,6 +56,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarDisponibilidad(psicologo, paciente, r.getFechaReserva(), r.getFechaTermino(), null);
         r.setEstado(EstadoReserva.PENDIENTE);
         reservaRepository.save(r);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), true));
         return reservaMapper.toDTO(r);
     }
 
@@ -102,6 +106,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarAntelacion24h(r.getFechaReserva());
         r.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(r);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
     }
 
     @Override
@@ -126,6 +131,7 @@ public class ReservaServiceImpl implements ReservaService {
                 ? EstadoReserva.valueOf(dto.getEstado().toUpperCase())
                 : EstadoReserva.PENDIENTE);
         reservaRepository.save(r);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), true));
         return reservaMapper.toDTO(r);
     }
 
@@ -157,10 +163,13 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDTO editarReservaAdmin(Long id, ReservaDTO dto) {
         Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        EstadoReserva estadoAnterior = r.getEstado();
         applyAdminUpdates(r, dto);
         validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
         validarDisponibilidad(r.getPsicologo(), r.getPaciente(), r.getFechaReserva(), r.getFechaTermino(), r.getIdReserva());
         reservaRepository.save(r);
+        if (r.getEstado() != estadoAnterior)
+            eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
         return reservaMapper.toDTO(r);
     }
 
@@ -172,6 +181,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarEstadoCancelable(r);
         r.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(r);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
     }
 
     @Override
@@ -183,6 +193,7 @@ public class ReservaServiceImpl implements ReservaService {
             throw new IllegalArgumentException("No se puede completar una reserva cancelada.");
         r.setEstado(EstadoReserva.COMPLETADA);
         reservaRepository.save(r);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
         return reservaMapper.toDTO(r);
     }
 

@@ -103,6 +103,16 @@
 		<groupId>org.springframework.ai</groupId>
 		<artifactId>spring-ai-starter-model-google-genai</artifactId>
 	</dependency>
+	<!-- Email (SMTP) -->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-mail</artifactId>
+	</dependency>
+	<!-- Thymeleaf (plantillas de email) -->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-thymeleaf</artifactId>
+	</dependency>
 </dependencies>
 
 	<build>
