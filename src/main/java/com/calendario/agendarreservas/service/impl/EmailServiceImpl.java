@@ -91,11 +91,20 @@ public class EmailServiceImpl implements EmailService {
             logger.warn("Nombre de remitente no codificable; reintentando sin nombre. reserva id={} rol={}", reservaId, rol);
             enviar(destinatario, rol, asunto, plantilla, modelo, reservaId, false);
         } catch (Exception e) {
-            logger.error("Fallo al enviar correo reserva id={} rol={} plantilla={}: {}",
-                    reservaId, rol, plantilla, e.getClass().getSimpleName());
+            logger.error("Fallo al enviar correo reserva id={} rol={} plantilla={}: {} -> {}",
+                    reservaId, rol, plantilla, e.getClass().getSimpleName(), causaRaiz(e));
             // El stacktrace puede contener el correo del destinatario: solo en DEBUG.
             logger.debug("Detalle del fallo de envio reserva id={} rol={}", reservaId, rol, e);
         }
+    }
+
+    
+    private String causaRaiz(Throwable e) {
+        Throwable causa = e;
+        while (causa.getCause() != null && causa.getCause() != causa) {
+            causa = causa.getCause();
+        }
+        return causa.getMessage();
     }
 
     private Map<String, Object> construirModelo(Reserva reserva, boolean esCreacion) {
