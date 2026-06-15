@@ -31,6 +31,8 @@ public class ReservaNotificacionListener {
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCambioEstado(ReservaEstadoEvent event) {
+        logger.debug("Evento recibido reserva id={} estado={} creacion={}",
+                event.reservaId(), event.nuevoEstado(), event.esCreacion());
         Reserva reserva = reservaRepository.findByIdConPersonas(event.reservaId()).orElse(null);
         if (reserva == null) {
             logger.warn("No se encontro la reserva id={} para notificar el cambio de estado", event.reservaId());

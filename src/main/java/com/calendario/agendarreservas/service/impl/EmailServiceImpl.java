@@ -37,10 +37,14 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void enviarCambioEstado(Reserva reserva, boolean esCreacion) {
+        Long reservaId = reserva.getIdReserva();
         if (!mailProperties.isEnabled()) {
-            logger.debug("Envio de correos deshabilitado (app.mail.enabled=false); reserva id={}", reserva.getIdReserva());
+            logger.debug("Notificaciones deshabilitadas (app.mail.enabled=false); se omite reserva id={}", reservaId);
             return;
         }
+
+        logger.info("Preparando notificaciones reserva id={} estado={} creacion={}",
+                reservaId, reserva.getEstado(), esCreacion);
 
         Map<String, Object> modelo = construirModelo(reserva, esCreacion);
         String asunto = construirAsunto(reserva.getEstado(), esCreacion);
@@ -48,16 +52,22 @@ public class EmailServiceImpl implements EmailService {
         User paciente = reserva.getPaciente();
         User psicologo = reserva.getPsicologo();
 
-        if (paciente != null && paciente.getEmail() != null) {
-            enviar(paciente.getEmail(), asunto, TEMPLATE_PACIENTE, modelo, reserva.getIdReserva());
-        }
-        if (psicologo != null && psicologo.getEmail() != null) {
-            enviar(psicologo.getEmail(), asunto, TEMPLATE_PSICOLOGO, modelo, reserva.getIdReserva());
-        }
+        enviarA(paciente, "paciente", asunto, TEMPLATE_PACIENTE, modelo, reservaId);
+        enviarA(psicologo, "psicologo", asunto, TEMPLATE_PSICOLOGO, modelo, reservaId);
     }
 
-    private void enviar(String destinatario, String asunto, String plantilla,
-                        Map<String, Object> modelo, Long reservaId) {
+    /** Valida el destinatario y delega el envio; nunca registra el correo, solo el rol. */
+    private void enviarA(User destinatario, String rol, String asunto, String plantilla,
+                         Map<String, Object> modelo, Long reservaId) {
+        if (destinatario == null || destinatario.getEmail() == null || destinatario.getEmail().isBlank()) {
+            logger.warn("Reserva id={} sin email para rol={}; se omite el envio", reservaId, rol);
+            return;
+        }
+        enviar(destinatario.getEmail(), rol, asunto, plantilla, modelo, reservaId, true);
+    }
+
+    private void enviar(String destinatario, String rol, String asunto, String plantilla,
+                        Map<String, Object> modelo, Long reservaId, boolean conNombreRemitente) {
         try {
             Context context = new Context();
             context.setVariables(modelo);
@@ -65,39 +75,26 @@ public class EmailServiceImpl implements EmailService {
 
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensaje, false, "UTF-8");
-            helper.setFrom(mailProperties.getFrom(), mailProperties.getFromName());
+            if (conNombreRemitente) {
+                helper.setFrom(mailProperties.getFrom(), mailProperties.getFromName());
+            } else {
+                helper.setFrom(mailProperties.getFrom());
+            }
             helper.setTo(destinatario);
             helper.setSubject(asunto);
             helper.setText(html, true);
 
             mailSender.send(mensaje);
-            logger.info("Correo de reserva id={} enviado correctamente (plantilla={})", reservaId, plantilla);
+            logger.info("Correo enviado reserva id={} rol={} plantilla={}", reservaId, rol, plantilla);
         } catch (UnsupportedEncodingException e) {
             // from-name no codificable: reintentar sin nombre amigable
-            logger.warn("No se pudo codificar el nombre del remitente; reintentando sin nombre. reserva id={}", reservaId);
-            enviarSinNombre(destinatario, asunto, plantilla, modelo, reservaId);
+            logger.warn("Nombre de remitente no codificable; reintentando sin nombre. reserva id={} rol={}", reservaId, rol);
+            enviar(destinatario, rol, asunto, plantilla, modelo, reservaId, false);
         } catch (Exception e) {
-            logger.error("Fallo al enviar correo de reserva id={} (plantilla={}): {}", reservaId, plantilla, e.getMessage());
-        }
-    }
-
-    private void enviarSinNombre(String destinatario, String asunto, String plantilla,
-                                 Map<String, Object> modelo, Long reservaId) {
-        try {
-            Context context = new Context();
-            context.setVariables(modelo);
-            String html = templateEngine.process(plantilla, context);
-
-            MimeMessage mensaje = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mensaje, false, "UTF-8");
-            helper.setFrom(mailProperties.getFrom());
-            helper.setTo(destinatario);
-            helper.setSubject(asunto);
-            helper.setText(html, true);
-
-            mailSender.send(mensaje);
-        } catch (Exception e) {
-            logger.error("Fallo al enviar correo de reserva id={} (plantilla={}): {}", reservaId, plantilla, e.getMessage());
+            logger.error("Fallo al enviar correo reserva id={} rol={} plantilla={}: {}",
+                    reservaId, rol, plantilla, e.getClass().getSimpleName());
+            // El stacktrace puede contener el correo del destinatario: solo en DEBUG.
+            logger.debug("Detalle del fallo de envio reserva id={} rol={}", reservaId, rol, e);
         }
     }
 

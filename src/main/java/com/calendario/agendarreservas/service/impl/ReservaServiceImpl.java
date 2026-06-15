@@ -13,6 +13,8 @@ import com.calendario.agendarreservas.repository.UserRepository;
 import com.calendario.agendarreservas.service.ReservaService;
 import com.calendario.agendarreservas.util.SecurityContextHelper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ReservaServiceImpl implements ReservaService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ReservaServiceImpl.class);
 
     private final ReservaRepository reservaRepository;
     private final UserRepository userRepository;
@@ -56,7 +60,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarDisponibilidad(psicologo, paciente, r.getFechaReserva(), r.getFechaTermino(), null);
         r.setEstado(EstadoReserva.PENDIENTE);
         reservaRepository.save(r);
-        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), true));
+        publicarCambioEstado(r, true);
         return reservaMapper.toDTO(r);
     }
 
@@ -106,7 +110,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarAntelacion24h(r.getFechaReserva());
         r.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(r);
-        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
+        publicarCambioEstado(r, false);
     }
 
     @Override
@@ -131,7 +135,7 @@ public class ReservaServiceImpl implements ReservaService {
                 ? EstadoReserva.valueOf(dto.getEstado().toUpperCase())
                 : EstadoReserva.PENDIENTE);
         reservaRepository.save(r);
-        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), true));
+        publicarCambioEstado(r, true);
         return reservaMapper.toDTO(r);
     }
 
@@ -168,8 +172,10 @@ public class ReservaServiceImpl implements ReservaService {
         validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
         validarDisponibilidad(r.getPsicologo(), r.getPaciente(), r.getFechaReserva(), r.getFechaTermino(), r.getIdReserva());
         reservaRepository.save(r);
-        if (r.getEstado() != estadoAnterior)
-            eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
+        if (r.getEstado() != estadoAnterior) {
+            logger.info("Cambio de estado en reserva id={}: {} -> {}", r.getIdReserva(), estadoAnterior, r.getEstado());
+            publicarCambioEstado(r, false);
+        }
         return reservaMapper.toDTO(r);
     }
 
@@ -181,7 +187,7 @@ public class ReservaServiceImpl implements ReservaService {
         validarEstadoCancelable(r);
         r.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(r);
-        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
+        publicarCambioEstado(r, false);
     }
 
     @Override
@@ -193,7 +199,7 @@ public class ReservaServiceImpl implements ReservaService {
             throw new IllegalArgumentException("No se puede completar una reserva cancelada.");
         r.setEstado(EstadoReserva.COMPLETADA);
         reservaRepository.save(r);
-        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), false));
+        publicarCambioEstado(r, false);
         return reservaMapper.toDTO(r);
     }
 
@@ -210,6 +216,13 @@ public class ReservaServiceImpl implements ReservaService {
     }
 
     // ---- helpers ----
+
+    /** Publica el evento de cambio de estado y deja traza (sin datos sensibles). */
+    private void publicarCambioEstado(Reserva r, boolean esCreacion) {
+        logger.info("Publicando notificacion reserva id={} estado={} creacion={}",
+                r.getIdReserva(), r.getEstado(), esCreacion);
+        eventPublisher.publishEvent(new ReservaEstadoEvent(r.getIdReserva(), r.getEstado(), esCreacion));
+    }
 
     private static final LocalTime HORA_APERTURA = LocalTime.of(8, 0);
     private static final LocalTime HORA_CIERRE = LocalTime.of(23, 59, 59);
