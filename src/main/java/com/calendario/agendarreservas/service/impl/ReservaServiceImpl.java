@@ -118,15 +118,14 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDTO crearReservaAdmin(ReservaDTO dto) {
         if (dto.getPacienteId() == null)
             throw new IllegalArgumentException("El ID del paciente es obligatorio.");
-        if (dto.getPsicologoId() == null)
-            throw new IllegalArgumentException("El ID del psicólogo es obligatorio.");
         validarDuracion(dto.getDuracionMinutos());
         validarModalidad(dto.getModalidad());
 
         User paciente = userRepository.findById(dto.getPacienteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente", dto.getPacienteId()));
-        User psicologo = userRepository.findById(dto.getPsicologoId())
-                .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", dto.getPsicologoId()));
+        // always use the authenticated psychologist, ignore any psicologoId in the body
+        User psicologo = userRepository.findById(securityContextHelper.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Psicólogo", securityContextHelper.getCurrentUserId()));
 
         Reserva r = buildReserva(dto, paciente, psicologo);
         validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
@@ -142,7 +141,9 @@ public class ReservaServiceImpl implements ReservaService {
     @Override
     @Transactional(readOnly = true)
     public List<ReservaDTO> obtenerTodasReservas() {
-        return reservaRepository.findAll().stream().map(reservaMapper::toDTO).toList();
+        Long me = securityContextHelper.getCurrentUserId();
+        return reservaRepository.findByPsicologoIdOrderByFechaReservaDesc(me)
+                .stream().map(reservaMapper::toDTO).toList();
     }
 
     @Override
@@ -150,16 +151,20 @@ public class ReservaServiceImpl implements ReservaService {
     public List<ReservaDTO> obtenerReservasPorPaciente(Long pacienteId) {
         userRepository.findById(pacienteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente", pacienteId));
-        return reservaRepository.findByPacienteIdOrderByFechaReservaDesc(pacienteId)
+        Long me = securityContextHelper.getCurrentUserId();
+        return reservaRepository.findByPacienteIdAndPsicologoIdOrderByFechaReservaDesc(pacienteId, me)
                 .stream().map(reservaMapper::toDTO).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public ReservaDTO obtenerReservaAdmin(Long id) {
-        return reservaMapper.toDTO(
-                reservaRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("Reserva", id)));
+        Reserva r = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!r.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para acceder a esta reserva.");
+        return reservaMapper.toDTO(r);
     }
 
     @Override
@@ -167,6 +172,9 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDTO editarReservaAdmin(Long id, ReservaDTO dto) {
         Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!r.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para editar esta reserva.");
         EstadoReserva estadoAnterior = r.getEstado();
         applyAdminUpdates(r, dto);
         validarHorarioLaboral(r.getFechaReserva(), r.getFechaTermino());
@@ -184,6 +192,9 @@ public class ReservaServiceImpl implements ReservaService {
     public void cancelarReservaAdmin(Long id) {
         Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!r.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para cancelar esta reserva.");
         validarEstadoCancelable(r);
         r.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(r);
@@ -195,6 +206,9 @@ public class ReservaServiceImpl implements ReservaService {
     public ReservaDTO completarReserva(Long id) {
         Reserva r = reservaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!r.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para completar esta reserva.");
         if (r.getEstado() == EstadoReserva.CANCELADA)
             throw new IllegalArgumentException("No se puede completar una reserva cancelada.");
         r.setEstado(EstadoReserva.COMPLETADA);

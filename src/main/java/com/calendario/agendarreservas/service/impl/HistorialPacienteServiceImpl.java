@@ -38,6 +38,9 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
 
         Reserva reserva = reservaRepository.findById(dto.getIdReserva())
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", dto.getIdReserva()));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!reserva.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para crear historial en esta reserva.");
 
         HistorialPaciente h = new HistorialPaciente();
         h.setReserva(reserva);
@@ -58,6 +61,9 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
     public HistorialPacienteDTO actualizarHistorial(Long id, HistorialPacienteDTO dto) {
         HistorialPaciente h = historialPacienteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Historial", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!h.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para actualizar este historial.");
 
         if (dto.getMotivoConsulta() != null) h.setMotivoConsulta(dto.getMotivoConsulta());
         if (dto.getTipoSesion() != null) h.setTipoSesion(TipoSesion.valueOf(dto.getTipoSesion()));
@@ -73,22 +79,27 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
     @Override
     @Transactional(readOnly = true)
     public HistorialPacienteDTO obtenerHistorialAdmin(Long id) {
-        return historialPacienteMapper.toDTO(
-                historialPacienteRepository.findByIdHistorialAndReservaEstado(id, EstadoReserva.COMPLETADA)
-                        .orElseThrow(() -> new ResourceNotFoundException("Historial", id)));
+        HistorialPaciente h = historialPacienteRepository.findByIdHistorialAndReservaEstado(id, EstadoReserva.COMPLETADA)
+                .orElseThrow(() -> new ResourceNotFoundException("Historial", id));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!h.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para acceder a este historial.");
+        return historialPacienteMapper.toDTO(h);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<HistorialPacienteDTO> obtenerHistorialPorPaciente(Long pacienteId) {
-        return historialPacienteRepository.findByPacienteIdOrderByFechaCreacionDesc(pacienteId)
+        Long me = securityContextHelper.getCurrentUserId();
+        return historialPacienteRepository.findByPacienteIdAndPsicologoIdOrderByFechaCreacionDesc(pacienteId, me)
                 .stream().map(historialPacienteMapper::toDTO).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<HistorialPacienteDTO> obtenerHistorialPorPacienteYRango(Long pacienteId, Instant desde, Instant hasta) {
-        return historialPacienteRepository.findByPacienteIdAndRango(pacienteId, desde, hasta)
+        Long me = securityContextHelper.getCurrentUserId();
+        return historialPacienteRepository.findByPacienteIdAndPsicologoIdAndRango(pacienteId, me, desde, hasta)
                 .stream().map(historialPacienteMapper::toDTO).toList();
     }
 
@@ -97,6 +108,9 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
     public NotasSesionDTO agregarNota(Long idHistorial, NotasSesionDTO dto) {
         HistorialPaciente h = historialPacienteRepository.findById(idHistorial)
                 .orElseThrow(() -> new ResourceNotFoundException("Historial", idHistorial));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!h.getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para agregar notas a este historial.");
 
         NotasSesion nota = new NotasSesion();
         nota.setHistorialPaciente(h);
@@ -109,9 +123,12 @@ public class HistorialPacienteServiceImpl implements HistorialPacienteService {
     @Override
     @Transactional
     public void eliminarNota(Long idNota) {
-        if (!notasSesionRepository.existsById(idNota))
-            throw new ResourceNotFoundException("Nota", idNota);
-        notasSesionRepository.deleteById(idNota);
+        NotasSesion nota = notasSesionRepository.findById(idNota)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota", idNota));
+        Long me = securityContextHelper.getCurrentUserId();
+        if (!nota.getHistorialPaciente().getPsicologo().getId().equals(me))
+            throw new UnauthorizedOperationException("Sin permisos para eliminar esta nota.");
+        notasSesionRepository.delete(nota);
     }
 
     @Override

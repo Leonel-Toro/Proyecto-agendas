@@ -16,6 +16,15 @@ public interface HistorialPacienteRepository extends JpaRepository<HistorialPaci
 
     List<HistorialPaciente> findByPacienteIdOrderByFechaCreacionDesc(Long pacienteId);
 
+    List<HistorialPaciente> findByPacienteIdAndPsicologoIdOrderByFechaCreacionDesc(Long pacienteId, Long psicologoId);
+
+    @Query("SELECT h FROM HistorialPaciente h WHERE h.paciente.id = :pacienteId AND h.psicologo.id = :psicologoId AND h.fechaCreacion BETWEEN :desde AND :hasta ORDER BY h.fechaCreacion DESC")
+    List<HistorialPaciente> findByPacienteIdAndPsicologoIdAndRango(
+            @Param("pacienteId") Long pacienteId,
+            @Param("psicologoId") Long psicologoId,
+            @Param("desde") Instant desde,
+            @Param("hasta") Instant hasta);
+
     Optional<HistorialPaciente> findByReservaIdReserva(Long idReserva);
 
     Optional<HistorialPaciente> findByIdHistorialAndReservaEstado(Long idHistorial, EstadoReserva estado);

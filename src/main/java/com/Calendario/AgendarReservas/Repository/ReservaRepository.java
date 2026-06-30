@@ -20,6 +20,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     List<Reserva> findByPsicologoIdOrderByFechaReservaDesc(Long psicologoId);
 
+    List<Reserva> findByPacienteIdAndPsicologoIdOrderByFechaReservaDesc(Long pacienteId, Long psicologoId);
+
     List<Reserva> findByPacienteIdAndEstadoOrderByFechaReservaDesc(Long pacienteId, EstadoReserva estado);
 
     @Query("SELECT r FROM Reserva r JOIN FETCH r.paciente JOIN FETCH r.psicologo WHERE r.idReserva = :id")
